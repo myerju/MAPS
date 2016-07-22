@@ -1,0 +1,205 @@
+---
+title: "CERT Output"
+output: pdf_document
+---
+
+This is a template for analyzing CERT raw data. It will tidy the data and create a single graph for looking at 1 AU or a faceted series of graphs of all AU intensities.
+
+CERT analyzes videos frame by frame so it is frame aligned, not time aligned. Later we can convert frames to seconds to align to longer video sessions.
+
+```{r import_load_packages}
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+Make sure to do a Find and Replace All command to replace the dataframe name for the whole code to work.
+```{r import_data}
+#On Box for Julianne - change name to match csv
+#cert_mr_yawn1 <- read.csv("/Users/myerju/Box Sync/MAPS/Data/MR_yawn1.csv", header=F)
+
+#On Laptop for Julianne - change name to match csv
+cert_mr_yawn1 <- read.csv("/Users/julianne/Box Sync/MAPS/Data/MR_yawn1.csv", header=F) 
+
+#On Laptop for Marissa - change name to match csv
+#cert_mr_yawn1 <- read.csv("/Users/Marissa Renda/Documents/Other Work/MR_yawn1.csv", header=F)
+
+#For other
+#name <- read.csv("/put/path/here/name.csv", header=F) #find and replace "name"
+```
+
+
+#Tidying Our Data
+
+Now since the raw output has some header rows that aren't actual headers, we will have to rename them. This works for us anyways since the raw header names won't work well with our graphs later.
+```{r define_col_names}
+names <- c("AU_1_Inner_Brow_Raise", "AU_2_Outer_Brow_Raise", "AU_4_Brow_Lower",  "AU_5_Eye_Widen",
+           "AU_9_Nose_Wrinkle",  "AU_10_Lip_Raise",  "AU_12_Lip_Corner_Pull",	"AU_14_Dimpler",	
+           "AU_15_Lip_Corner_Depressor",	"AU_17_Chin_Raise",	"AU_20_Lip_stretch",	"AU_6_Cheek_Raise",
+           "AU_7_Lids_Tight",	"AU_18_Lip_Pucker",	"AU_23_Lip_Tightener",	"AU_24_Lip_Presser",
+           "AU_25_Lips_Part",	"AU_26_Jaw_Drop",	"AU_28_Lips_Suck",	"AU_45_Blink/Eye_Closure",
+           "Fear_Brow",	"Distress_Brow",	"AU_10_Left",	"AU_12_Left",	"AU_14_Left",	"AU_10_Right",
+           "AU_12_Right",	"AU_14_Right",	"Gender",	"Glasses",	"Yaw",	"Pitch",	"Roll",	"Smile_Detector",
+           "Anger_v3",	"Contempt_v3",	"Disgust_v3",	"Fear_v3",	"Joy_v3",	"Sad_v3",	"Surprise_v3",	
+           "Neutral_v3")
+```
+
+We also don't want to work with the X,Y coordinates of facial features at the moment so those have to go too. We will simultaneously get rid of the top 3 "blank" rows.
+```{r select_necessary_data}
+cert_mr_yawn1<- cert_mr_yawn1[-(1:3), -(1:25)]
+head(cert_mr_yawn1)
+```
+
+Now our column names should match the actual data. Let's put them in now.
+```{r rename_columns}
+colnames(cert_mr_yawn1) <- names
+```
+
+For ease of coding, we'll also make everything lower case.
+```{r lower_case}
+names(cert_mr_yawn1) <- names(cert_mr_yawn1) %>%
+  tolower() 
+```
+
+For some reason, the data was importing as factors so we'll just make sure that everything up to this point is numeric.
+```{r make_data_numeric}
+cert_mr_yawn1[,c(1:42)] <- as.numeric(as.character(unlist(cert_mr_yawn1[,c(1:42)])))
+str(cert_mr_yawn1)
+```
+
+Great, now we need a column that tells us what frame each data point corresponds to. The amount of frames will differ by video length, so we'll keep our code universal by creating an object that equals the amount of frames.
+```{r create_frame_column}
+end <- nrow(cert_mr_yawn1)          #How many frames do we have in this video?
+
+cert_mr_yawn1<- cert_mr_yawn1 %>%   #create frame column
+  mutate(frame= c(1:end))
+```
+
+
+#Plotting our Data
+
+###Single AU plot
+If you want to look at any particular AU, then here is the code for just one line plot.
+```{r plot_1_au}
+au<- ggplot(cert_mr_yawn1, aes(x=frame, y=disgust_v3))
+au<- au+ geom_line()
+au<- au+ ggtitle("Disgust")
+au
+```
+
+
+###More Tidying
+
+TRIAL: We are going to remove gender, glasses, pitch, roll, and yaw.
+ - Alternatively, we can use scales = free y to let us see our graphs in ranges that are better suited for their data.
+```{r remove_variables}
+cert_mr_yawn1_new <- cert_mr_yawn1 %>%
+  select(-c(gender, glasses, pitch, roll, yaw))
+```
+
+For creating a faceted graph, the data will have to be long. We'll use _gather_ from _dplyr_.
+```{r create_long_df}
+cert_mr_yawn1_long <- gather(cert_mr_yawn1_new, au, intensity, au_1_inner_brow_raise:neutral_v3)
+```
+
+### Mulitple AU Facet Plot
+
+Now we can make our faceted plot.
+```{r au_facet_plot}
+au_total<- ggplot(cert_mr_yawn1_long, aes(x=frame, y=intensity))
+au_total<- au_total+ geom_line()
+au_total<- au_total+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
+au_total<- au_total+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
+au_total
+
+#For Julianne's box
+#ggsave(au_total, file = "/Users/myerju/Box Sync/MAPS/figs/cert_mr_yawn1.pdf", height=9, width=12) 
+
+#On Laptop for Julianne - change name to match csv
+#ggsave(au_total, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/MR_yawn1.pdf", height=9, width=12)
+
+#On Laptop for Marissa - change name to match csv
+#ggsave(au_total, file = "/Users/Marissa Renda/Documents/Other Work/MR_yawn1.pdf", height=9, width=12)
+
+#For other user
+#ggsave(au_total, file = "match/beginning/file/path/figs/name_of_plot.pdf", height=9, width=12) 
+```
+
+
+### Adding Colors
+
+I think it may be nice to add some colors to help us further interpret the data.
+
+Let's start by deciding what we want our color to tell us. Right now, it will be red if it is positive (over 0) and blue if it is negative (under 0). This will hopefully allow us to quickly pick out changes in important AUs for our facial expression.
+
+```{r assign_color}
+cert_mr_yawn1_color <- cert_mr_yawn1_long %>%
+  mutate(color = ifelse(intensity > 0, "#de2d26", "#2c7fb8"))
+```
+
+
+```{r au_facet_plot_color}
+au_color<- ggplot(cert_mr_yawn1_color, aes(x=frame, y=intensity))
+au_color<- au_color+ geom_path(aes(color=intensity))
+au_color<- au_color+ scale_color_gradient(limits= c(-4, 4), low="blue", high="red")
+au_color<- au_color+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
+au_color<- au_color+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
+au_color
+
+#For Julianne's box
+#ggsave(au_color, file = "/Users/myerju/Box Sync/MAPS/figs/cert_mr_yawn1_color.pdf", height=9, width=12) 
+
+#On Laptop for Julianne - change name to match csv
+#ggsave(au_color, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/MR_yawn1_color.pdf", height=9, width=12)
+
+#On Laptop for Marissa - change name to match csv
+#ggsave(au_color, file = "/Users/Marissa Renda/Documents/Other Work/MR_yawn1_color.pdf", height=9, width=12)
+
+#For other user
+#ggsave(au_color, file = "match/beginning/file/path/figs/name_of_plot_color.pdf", height=9, width=12) 
+```
+
+*Note:* I can't quite get these colors right. I'd like to have it split at zero but when I ask it to take my color column into account, it splits into two different lines. 
+
+#Head Placement (Pitch, Roll, and Yaw)
+
+Now we'll try to see what pitch, roll, and yaw do with each other.
+```{r head_placement_groups}
+pitch <- cert_mr_yawn1 %>%
+  select(pitch)
+
+roll <- cert_mr_yawn1 %>%
+  select(roll)
+
+yaw <- cert_mr_yawn1 %>%
+  select(yaw)
+
+coef(lm(pitch ~ yaw, data = cert_mr_yawn1))
+
+```
+
+```{r head_placement_plot_pitch+yaw}
+au_placement <- ggplot(cert_mr_yawn1, aes(x=pitch, y=yaw))
+au_placement <- au_placement+ geom_point()
+au_placement <- au_placement+ geom_smooth(method = "lm")
+au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Yaw)")
+au_placement
+```
+
+```{r head_placement_plot_pitch+roll}
+au_placement <- ggplot(cert_mr_yawn1, aes(x=pitch, y=roll))
+au_placement <- au_placement+ geom_point()
+au_placement <- au_placement+ geom_smooth(method = "lm")
+au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Roll)")
+au_placement
+```
+
+
+TO DO: Figure out how to make pitch, roll, and yaw plots into a facet grid.
+
+
