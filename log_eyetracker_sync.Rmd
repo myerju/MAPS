@@ -1,0 +1,66 @@
+---
+title: "Log/Eyetracker Output Sync"
+output: html_document
+---
+
+```{r import_load_packages}
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+
+```{r import_csv}
+#on julianne's laptop 
+#eyetracker <- (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-003_eyetracker.csv", header=TRUE)) 
+
+#log <-  (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-003_log.csv", header=TRUE))
+
+#on julianne's boxsync
+eyetracker <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-003_eyetracker.csv", header=TRUE)) 
+
+log <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-003_log.csv", header=TRUE)) 
+```  
+
+Tidy our log data for Joining later
+```{r, tidy_data}
+log_nodesc <- log[-(1:3), ] #get rid of extra 10.4 timestamp entries at beginning - no descriptions at top
+
+log_touch <- log_nodesc %>%   # create dataframe with timestamp and touchquadrant
+  filter(event == "touchquadrant") %>%
+  select(timestamp, entry) 
+
+colnames(log_touch)[2] <- "touchquadrant" #rename event column for join later
+
+log_nodesc <- filter(log_nodesc, !grepl('touchquadrant', event)) #get rid of multiple touchscreen rows
+
+log_nodesc <- left_join(log_nodesc, log_touch, by="timestamp") #join for a column that represents the touchquadrant
+```
+
+We can't use the difference join with two factors because it cannot subtract one from the other. They must be numeric. The current structure of the Timestamp column is MM:SS.MS. We can use "period to seconds" in lubridate to create a new joining column we will call timestamp_ sec. 
+
+```{r fix_timestamp}
+#create new vectors of timestamp_sec for log_nodesc
+log_timestamp_sec <- (as.numeric(as.POSIXct(strptime(log_nodesc$timestamp, format = "%M:%OS"))) - 
+    as.numeric(as.POSIXct(strptime("0", format = "%S"))))
+
+#create new vectors of timestamp_sec for eyetracker
+eyetracker_timestamp_sec <- (as.numeric(as.POSIXct(strptime(eyetracker$timestamp, format = "%H:%M:%OS"))) - 
+    as.numeric(as.POSIXct(strptime("0", format = "%S"))))
+
+#Create a new column for join in log_nodesc and eyetracker
+log_nodesc <- log_nodesc%>%
+  mutate(timestamp_sec = log_timestamp_sec)
+
+eyetracker <- eyetracker%>%
+  mutate(timestamp_sec = eyetracker_timestamp_sec)
+```
+
+```{r, join_output}
+sync_data <- difference_left_join(eyetracker, log_nodesc, by = "timestamp_sec", max_dist =.5)
+```
