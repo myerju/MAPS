@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r import_load_packages}
-pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin") # list packages needed
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin", "zoo") # list packages needed
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg)) 
@@ -14,17 +14,18 @@ ipak <- function(pkg){
 suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
+##MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK
 
 ```{r import_csv}
 #on julianne's laptop 
-#eyetracker <- (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-003_eyetracker.csv", header=TRUE)) 
+#eyetracker <- (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-016_eyetracker.csv", header=TRUE)) 
 
-#log <-  (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-003_log.csv", header=TRUE))
+#log <-  (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-016_log.csv", header=TRUE))
 
 #on julianne's boxsync
-eyetracker <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-003_eyetracker.csv", header=TRUE)) 
+eyetracker <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-016_eyetracker.csv", header=TRUE)) 
 
-log <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-003_log.csv", header=TRUE)) 
+log <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-016_log.csv", header=TRUE)) 
 ```  
 
 Tidy our log data for Joining later
@@ -61,6 +62,53 @@ eyetracker <- eyetracker%>%
   mutate(timestamp_sec = eyetracker_timestamp_sec)
 ```
 
-```{r, join_output}
-sync_data <- difference_left_join(eyetracker, log_nodesc, by = "timestamp_sec", max_dist =.5)
+```{r join_output}
+#fuzzy join log and eyetracker within .06 of the timestamp_sec column
+sync_data <- difference_left_join(eyetracker, log_nodesc, by = "timestamp_sec", max_dist =.06) 
 ```
+
+This gives us an approximate start and end time for all the stimuli/touch responses. I need to figure out the correct distance that I should use for this fuzzy-join. .06 was used because the beginning of the session in the log is 10.4 and is 10.459 in the eyetracker data. This causes a few repeats later down the list (a start time in the log corresponds with more than one row of eyetracker rows). I will look into filling in the rows inbetween start and end points. For filled in rows source will be "calculated", event will be "play", and entry will equal the video. 
+
+```{r fill_down_entry}
+#find unique values and fill cells below until next unique value
+sync_data$entry <- na.locf(sync_data$entry,na.rm = FALSE) 
+```
+
+This worked really well for filling the entry column. It's pretty messy at the beginning because of the touch screen test but that's ok because we won't really need to analyze that part. Now to replace the NA values in the source and event columns. We will have to change the data type of those columns because replace_na doesn't work with factor variables unless you are replace the NAs with a predetermined factor of that column. 
+
+```{r fill_in_source_event}
+#change columns from factor to character
+sync_data$source <- as.character(sync_data$source) 
+sync_data$event <- as.character(sync_data$event)
+
+#replace NA values in source and event columns with new values
+sync_data <- sync_data %>%
+  replace_na(list(source = "calculated", event = "play")) 
+```
+
+Ok. Everything looks good! Let's section off everything after the eyetracker calibration.
+
+```{r post_calibration}
+#find the timestamp when the first filler starts
+start <- sync_data %>% 
+  filter(entry == "Session Map Fillers/filler1+map.mov") %>%
+  filter(event == "start") %>%
+  select(timestamp_sec.x)
+
+#pull that timestamp from the dataframe (looking for better ways to do this)
+start_val <- start[1,] 
+
+#create dataframe of everything after calibration and intro
+sync_data_postcalib <- 
+  filter(sync_data, sync_data$timestamp_sec.x >= start_val) 
+```
+
+Now let's export our two new dataframes.
+```{r export_data}
+#full synced dataset 
+write.csv(sync_data, file = "/Users/myerju/Box Sync/MAPS/Data/MAPS-016_full_data_sync.csv")
+
+#post-calibration synced dataset 
+write.csv(sync_data_postcalib, file = "/Users/myerju/Box Sync/MAPS/Data/MAPS-016_postcalib_data_sync.csv")
+```
+
