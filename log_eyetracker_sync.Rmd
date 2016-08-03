@@ -3,8 +3,9 @@ title: "Log/Eyetracker Output Sync"
 output: html_document
 ---
 
+##Load Packages
 ```{r import_load_packages}
-pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin", "zoo") # list packages needed
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin", "zoo", "readr") # list packages needed
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg)) 
@@ -14,54 +15,109 @@ ipak <- function(pkg){
 suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
-##MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK
-
+##Import Data
+###MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK
 ```{r import_csv}
 #on julianne's laptop 
-#eyetracker <- (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-016_eyetracker.csv", header=TRUE)) 
+#eyetracker <- (read_csv("/Users/julianne/Desktop/Raw-selected/MAPS-016_eyetracker.csv")) 
 
-#log <-  (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-016_log.csv", header=TRUE))
+#log <-  (read_tsv("/Users/julianne/Desktop/Raw-selected/MAPS_016_log.tsv"))
 
 #on julianne's boxsync
-eyetracker <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-016_eyetracker.csv", header=TRUE)) 
+#eyetracker <- (read_csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-016_eyetracker.csv")) 
 
-log <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-016_log.csv", header=TRUE)) 
+#log <- (read_tsv("/Users/myerju/Box Sync/MAPS/Data/MAPS_016_log.tsv")) 
+
+#on MAPS1 Hard drive
+eyetracker <- (read_csv("/Volumes/MAPS1/Participant Recordings/MAPS_002/raw/MAPS_002_eyetracker.csv")) 
+log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS_002/raw/MAPS_002_log.tsv")) 
 ```  
 
-Tidy our log data for Joining later
-```{r, tidy_data}
-log_nodesc <- log[-(1:3), ] #get rid of extra 10.4 timestamp entries at beginning - no descriptions at top
-
-log_touch <- log_nodesc %>%   # create dataframe with timestamp and touchquadrant
-  filter(event == "touchquadrant") %>%
-  select(timestamp, entry) 
-
-colnames(log_touch)[2] <- "touchquadrant" #rename event column for join later
-
-log_nodesc <- filter(log_nodesc, !grepl('touchquadrant', event)) #get rid of multiple touchscreen rows
-
-log_nodesc <- left_join(log_nodesc, log_touch, by="timestamp") #join for a column that represents the touchquadrant
-```
-
+##Tidy Data
 We can't use the difference join with two factors because it cannot subtract one from the other. They must be numeric. The current structure of the Timestamp column is MM:SS.MS. We can use "period to seconds" in lubridate to create a new joining column we will call timestamp_ sec. 
 
 ```{r fix_timestamp}
-#create new vectors of timestamp_sec for log_nodesc
-log_timestamp_sec <- (as.numeric(as.POSIXct(strptime(log_nodesc$timestamp, format = "%M:%OS"))) - 
+#create new vectors of timestamp_sec for log_nodesc and eyetracker
+log_timestamp_sec <- (as.numeric(as.POSIXct(strptime(log$timestamp, format = "%H:%M:%OS"))) - 
     as.numeric(as.POSIXct(strptime("0", format = "%S"))))
 
-#create new vectors of timestamp_sec for eyetracker
 eyetracker_timestamp_sec <- (as.numeric(as.POSIXct(strptime(eyetracker$timestamp, format = "%H:%M:%OS"))) - 
     as.numeric(as.POSIXct(strptime("0", format = "%S"))))
 
 #Create a new column for join in log_nodesc and eyetracker
-log_nodesc <- log_nodesc%>%
+log <- log%>%
   mutate(timestamp_sec = log_timestamp_sec)
 
 eyetracker <- eyetracker%>%
   mutate(timestamp_sec = eyetracker_timestamp_sec)
 ```
 
+
+Tidy our log data for Joining later
+```{r, tidy_data}
+#get rid of extra 10.4 timestamp entries at beginning - no descriptions at top
+log_nodesc <- log[-(1:3), ] 
+
+# create dataframe with timestamp and touchquadrant
+log_touch <- log_nodesc %>%   
+  filter(event == "touchquadrant") %>%
+  select(timestamp_sec, entry) 
+
+#rename event column for join later
+colnames(log_touch)[2] <- "touchquadrant" 
+```
+
+Some log files share timestamps for rows where event = touch or touchquadrant. Others have different timestamps. Here is the work around for a file where the later is true.
+
+###Unequal Timestamps in Log Touch Entries
+```{r tidy_if_unequal_timestamps}
+#join for a column that represents the touchquadrant
+log_nodesc <- difference_left_join(log_nodesc, log_touch, by = "timestamp_sec", max_dist =.005) 
+
+#get rid of multiple touchscreen rows
+log_nodesc <- filter(log_nodesc, !grepl('touchquadrant', event)) 
+
+#get rid of second timestamp col from distance join
+log_nodesc <-select(log_nodesc, -matches("timestamp_sec.y"))
+
+#rename timestamp_sec col for later distance join
+colnames(log_nodesc)[5] <- "timestamp_sec"
+```
+
+###Equal Timestamps in Log Touch Entries
+```{r tidy_if_equal_timestamps}
+#get rid of multiple touchscreen rows
+log_nodesc <- filter(log_nodesc, !grepl('touchquadrant', event)) 
+
+#join for a column that represents the touchquadrant
+log_nodesc <- left_join(log_nodesc, log_touch, by="timestamp")
+```
+
+The problem with these two solutions is that we would have to check for each individual file to know which script to run. We want a universal script that will work on all of our data. Alison suggested looking at split and window functions (lead and lag) to create the new column and not focus on the timestamp at all.
+
+```{r tidy_touch}
+#take a subset of data to play with
+log_test <- log[5:8, ]
+
+#mutate a new column
+log_test_filter <- log_test %>%
+  mutate(touchquadrant = (ifelse (log_test$event=="touch", lead(entry), NA)))
+
+#get rid of multiple touchscreen rows
+log_test_2 <- filter(log_test_filter, !grepl('touchquadrant', event)) 
+```
+
+Let's try it with the whole dataset.
+```{r tidy_touch_entries}
+#mutate a new column
+log_nodesc <- log_nodesc %>%
+  mutate(touchquadrant = (ifelse (log_nodesc$event=="touch", lead(entry), NA)))
+
+#get rid of multiple touchscreen rows
+log_nodesc <- filter(log_nodesc, !grepl('touchquadrant', event)) 
+```
+
+##Join Log and Eyetracker Data
 ```{r join_output}
 #fuzzy join log and eyetracker within .06 of the timestamp_sec column
 sync_data <- difference_left_join(eyetracker, log_nodesc, by = "timestamp_sec", max_dist =.06) 
@@ -69,6 +125,7 @@ sync_data <- difference_left_join(eyetracker, log_nodesc, by = "timestamp_sec", 
 
 This gives us an approximate start and end time for all the stimuli/touch responses. I need to figure out the correct distance that I should use for this fuzzy-join. .06 was used because the beginning of the session in the log is 10.4 and is 10.459 in the eyetracker data. This causes a few repeats later down the list (a start time in the log corresponds with more than one row of eyetracker rows). I will look into filling in the rows inbetween start and end points. For filled in rows source will be "calculated", event will be "play", and entry will equal the video. 
 
+###Tidy Post-Join Data
 ```{r fill_down_entry}
 #find unique values and fill cells below until next unique value
 sync_data$entry <- na.locf(sync_data$entry,na.rm = FALSE) 
@@ -88,6 +145,7 @@ sync_data <- sync_data %>%
 
 Ok. Everything looks good! Let's section off everything after the eyetracker calibration.
 
+##Create Post-Calibration Data
 ```{r post_calibration}
 #find the timestamp when the first filler starts
 start <- sync_data %>% 
@@ -96,19 +154,20 @@ start <- sync_data %>%
   select(timestamp_sec.x)
 
 #pull that timestamp from the dataframe (looking for better ways to do this)
-start_val <- start[1,] 
+start_val <- start[1,1] 
 
 #create dataframe of everything after calibration and intro
-sync_data_postcalib <- 
-  filter(sync_data, sync_data$timestamp_sec.x >= start_val) 
+sync_data_postcalib <- filter(sync_data, sync_data$timestamp_sec.x > start_val$timestamp_sec.x) 
 ```
 
+
+##Export Cleaned Data
 Now let's export our two new dataframes.
 ```{r export_data}
 #full synced dataset 
-write.csv(sync_data, file = "/Users/myerju/Box Sync/MAPS/Data/MAPS-016_full_data_sync.csv")
+write.csv(sync_data, file = "/Volumes/MAPS1/Participant Recordings/MAPS_002/synced/MAPS-002_full_data_sync.csv")
 
 #post-calibration synced dataset 
-write.csv(sync_data_postcalib, file = "/Users/myerju/Box Sync/MAPS/Data/MAPS-016_postcalib_data_sync.csv")
+write.csv(sync_data_postcalib, file = "/Volumes/MAPS1/Participant Recordings/MAPS_002/synced/MAPS-002_postcalib_data_sync.csv")
 ```
 
