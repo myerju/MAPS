@@ -5,8 +5,15 @@ output: html_document
 
 We will be doing a series of analyses for the upcoming R01 for MAPS. Some of them can be done without the markup (pre-markup analyses)
 
+#PRE-MARKUP ANALYSES
+
+##Amount of data missing from eyetracker data 
+  - we will need to use merged log and eyetracker data (_see "log_eyetracker_sync.Rmd"" for more info_)
+  - make sure to section out eye tracker data in between calibration and storytelling task
+
+###Load Packages
 ```{r import_load_packages}
-pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin") # list packages needed
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin", "zoo", "readr") # list packages needed
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg)) 
@@ -16,101 +23,144 @@ ipak <- function(pkg){
 suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
-###PRE-MARKUP ANALYSES
-
-1) amount of data missing from eyetracker data 
-  - we will need to merge log file and eyetracker csv (use fuzzyjoin package by David Robinson)
-  - make sure to section out eye tracker data in between calibration and storytelling task
-
-
-###Statistics using REDCap information
-
+###Load in synced data
+**MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK**
 ```{r import_csv}
-#on julianne's laptop 
-#eyetracker <- (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-003_eyetracker.csv", header=TRUE)) 
-
-#log <-  (read.csv("/Users/julianne/Desktop/Raw-selected/MAPS-003_log.csv", header=TRUE))
-
-#on julianne's boxsync
-eyetracker <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-003_eyetracker.csv", header=TRUE)) 
-
-log <- (read.csv("/Users/myerju/Box Sync/MAPS/Data/MAPS-003_log.csv", header=TRUE)) 
-```  
-
-Tidy our log data for Joining later
-```{r, tidy_data}
-log_nodesc <- log[-(1:3), ] #get rid of extra 10.4 timestamp entries at beginning - no descriptions at top
-
-log_touch <- log_nodesc %>%   # create dataframe with timestamp and touchquadrant
-  filter(event == "touchquadrant") %>%
-  select(timestamp, entry) 
-
-colnames(log_touch)[2] <- "touchquadrant" #rename event column for join later
-
-log_nodesc <- filter(log_nodesc, !grepl('touchquadrant', event)) #get rid of multiple touchscreen rows
-
-log_nodesc <- left_join(log_nodesc, log_touch, by="timestamp") #join for a column that represents the touchquadrant
+#on MAPS1 Hard drive
+sync_data_postcalib <- (read_csv("/Volumes/MAPS1/Participant Recordings/MAPS-002/synced/MAPS-002_postcalib_data_sync.csv"))
 ```
 
-We can't use the difference join with two factors because it cannot subtract one from the other. They must be numeric. The current structure of the Timestamp column is MM:SS.MS. We can use "period to seconds" in lubridate to create a new joining column we will call timestamp_ sec. 
+###Missing eyetracker data per participant
 
-```{r fix_timestamp}
-#create new vectors of timestamp_sec for log_nodesc
-log_timestamp_sec <- (as.numeric(as.POSIXct(strptime(log_nodesc$timestamp, format = "%M:%OS"))) - 
-    as.numeric(as.POSIXct(strptime("0", format = "%S"))))
+How do we want to define missing data?
 
-#create new vectors of timestamp_sec for eyetracker
-eyetracker_timestamp_sec <- (as.numeric(as.POSIXct(strptime(eyetracker$timestamp, format = "%H:%M:%OS"))) - 
-    as.numeric(as.POSIXct(strptime("0", format = "%S"))))
+both right and left eye = true missing data points
+How often they are looking at the screen? How often the eyetracker is working?
+Per stimulus? Stimulus type?
+Group difference?
+```{r separate_data}
+right_eye <- sync_data_postcalib %>%
+  select(contains("right"))
 
-#Create a new column for join in log_nodesc and eyetracker
-log_nodesc <- log_nodesc%>%
-  mutate(timestamp_sec = log_timestamp_sec)
-
-eyetracker <- eyetracker%>%
-  mutate(timestamp_sec = eyetracker_timestamp_sec)
+left_eye <- sync_data_postcalib %>%
+  select(contains("left"))
 ```
 
-```{r, join_output}
-sync_data <- difference_left_join(eyetracker, log_nodesc, by = "timestamp_sec", max_dist =.5)
+```{r data_missing_ind}
+#amount of data missing from x and y coordinates in RIGHT eye
+right_gaze_0 <- right_eye %>%
+  count(right_gaze_x_px == 0.00 & right_gaze_y_px == 0.00) %>%
+  mutate(prop_right_gaze = prop.table(n)) 
+
+#amount of data prop from eye position in RIGHT eye
+right_position_0 <- right_eye %>%
+  count(right_eye_position_x_mm== 0.00 & right_eye_position_y_mm == 0.00 & right_eye_position_z_mm == 0.00) %>%
+  mutate(prop_right_position = prop.table(n)) 
+
+#amount of data prop from pupil diameter in RIGHT eye
+right_diameter_0 <- right_eye %>%
+  count(right_pupil_diameter_mm == 0.00)%>%
+  mutate(prop_right_size= prop.table(n)) 
+
+#amount of data prop from x and y coordinates in LEFT eye
+left_gaze_0 <- left_eye %>%
+  count(left_gaze_x_px == 0.00 & left_gaze_y_px == 0.00) %>%
+  mutate(prop_left_gaze = prop.table(n)) 
+
+#amount of data prop from eye position in LEFT eye
+left_position_0 <- left_eye %>%
+  count(left_eye_position_x_mm== 0.00 & left_eye_position_y_mm == 0.00 & left_eye_position_z_mm == 0.00) %>%
+  mutate(prop_left_position = prop.table(n)) 
+
+#amount of data prop from pupil diameter in LEFT eye
+left_diameter_0 <- left_eye %>%
+  count(left_pupil_diameter_mm == 0.00)%>%
+  mutate(prop_left_size = prop.table(n)) 
+
+#amount of data prop from x and y coordinates in BOTH eyes
+both_gaze_0 <- sync_data_postcalib %>%
+  count(right_gaze_x_px == 0.00 & right_gaze_y_px == 0.00 & left_gaze_x_px == 0.00 & left_gaze_y_px == 0.00) %>%
+  mutate(prop_both_gaze = prop.table(n)) 
+
+#amount of data prop from eye position in BOTH eyes
+both_position_0 <- sync_data_postcalib %>%
+  count(right_eye_position_x_mm== 0.00 & right_eye_position_y_mm == 0.00 & right_eye_position_z_mm == 0.00 & left_eye_position_x_mm== 0.00 & left_eye_position_y_mm == 0.00 & left_eye_position_z_mm == 0.00) %>%
+  mutate(prop_both_position = prop.table(n)) 
+
+#amount of data prop from pupil diameter in BOTH eyes
+both_diameter_0 <- sync_data_postcalib %>%
+  count(right_pupil_diameter_mm == 0.00 & left_pupil_diameter_mm == 0.00)%>%
+  mutate(prop_both_size = prop.table(n)) 
+
+
+#add first column of data type
+data_type <- c("present data", "missing data")
+
+#create a table with all stats from above
+missing_eyetracker <- cbind(data_type, right_gaze_0, right_position_0, right_diameter_0, left_gaze_0, left_position_0, left_diameter_0, both_gaze_0, both_position_0, both_diameter_0)
+
+#rename to specify what n describes
+colnames(missing_eyetracker) <- c("data_type", "1right_gaze_x_px == 0 & right_gaze_y_p...", "n_right_gaze", "prop_right_gaze", "2right_eye_position_x_mm == 0 & right_...", "n_right_position", "prop_right_position", "3right_pupil_diameter_mm == 0", "n_right_size", "prop_right_size", "left_gaze_x_px == 0 & left_gaze_y_px ...", "n_left_gaze", "prop_left_gaze", "left_eye_position_x_mm == 0 & left_ey...", "n_left_position", "prop_left_position", "left_pupil_diameter_mm == 0", "n_left_size", "prop_left_size", "4right_gaze_x_px == 0 & right_gaze_y_p...", "n_both_gaze", "prop_both_gaze", "5right_eye_position_x_mm == 0 & right_...", "n_both_position", "prop_both_position", "6right_pupil_diameter_mm == 0 & left_p...", "n_both_size", "prop_both_size")                          
+#get rid of unneccesary identifier columns
+missing_eyetracker <- missing_eyetracker %>%
+  select(-contains("== 0"))
+```
+
+```{r export_missing_data_ind}
+write.csv(missing_eyetracker, file = "/Volumes/MAPS1/Participant Recordings/MAPS-002/synced/MAPS-002_missing_eyetracker.csv")
+```
+
+###Total missing data
+```{r import_csv}
+#on MAPS1 Hard drive
+missing_eyetracker_002 <- (read_csv("/Volumes/MAPS1/Participant Recordings/MAPS-002/synced/MAPS-002_missing_eyetracker.csv"))
+missing_eyetracker_018 <- (read_csv("/Volumes/MAPS1/Participant Recordings/MAPS-018/synced/MAPS-018_missing_eyetracker.csv"))
+```
+
+```{r total_data}
+
 ```
 
 
-2) Session completion rates
+
+#Statistics using REDCap information
+
+##Session completion rates
 
 ```{r session_complete}
 maps_complete <- maps %>% 
   filter(session_complete==1)
 ```
 
-3) Participation rates for storytelling task
+##Participation rates for storytelling task
 
 ```{r story_complete}
 maps_complete %>%
   summarise(storytell_complete)
 ```
 
-4) Session duration statistics
-
+##Session duration statistics
+move to eyetracker analysis
 ```{r session_duration}
 maps_complete %>%
   mean(session_time)
 ```
 
-5) Parent Feedback 
-  - how many kids enjoyed their time in maps
+#Statistics from Parent Feedback 
+
+##How many kids enjoyed their time in maps?
 ```{r session_like}
 maps_complete %>%
   summarize(like_overall)
 ```
 
-  - how many kids previously watched youtube
+##How many kids previously watched youtube?
 ```{r session_like}
 maps_complete %>%
   summarize(youtube_child)
 ```
 
-  - how often kids watch youtube
+##How often kids watch youtube?
 ```{r session_like}
 maps_complete %>%
   summarize(youtube_frequency)
