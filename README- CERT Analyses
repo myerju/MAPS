@@ -1,0 +1,26 @@
+#The Computer Expression Recognition Toolbox (CERT)
+CERT Yawn Analysis
+
+This is a template for analyzing CERT raw data. It will tidy the data and create a single graph for looking at 1 AU or a faceted series of graphs of all AU intensities.
+
+CERT analyzes videos frame by frame so it is frame aligned, not time aligned. Later we can convert frames to seconds to align to longer video sessions.
+
+In order for the script to work correctly, you must make sure to do a Find and Replace All command to replace the dataframe name.
+
+Importing Data
+  - CERT's output is a text file but script is included to import data in multiple formats from multiple locations.
+  - Supported file types:
+    - excel file (.xlsx)
+    - csv file (.csv)
+    - text file (.txt)
+  - All import code is commented out, so make sure to uncomment (delete the # in front of) the file type and location that you are importing
+  - R File paths contain separators written as "/", but windows file paths are written with "\" separators (MAKE SURE TO FIX THIS IF CHANGING FILE PATH)
+
+Tidying Data
+CERT will sometimes fail during original analysis. If this happens, there are two types of errors seen.
+
+ - Most often, it will be dominantly NAs. I’ve added a section immediately after import that will tell you if there are more NA values than non-NA values in the dataset. It is just a warning but can be converted to null out the dataset if you don’t want to run bad data through the rest of your analyses (this option was mostly made for the yawning analysis). 
+
+ - The second type of output error that can occur is when CERT fails and restarts its analysis output in the middle of rendering. In this case, the file will contain a series of NA values above the correct data. There is chunk of code solves this issue and cleans data for column renaming.
+
+CERT's output includes non-numeric values. Tidy process deletes these values, but it still needs to be restructured as a numeric type.
