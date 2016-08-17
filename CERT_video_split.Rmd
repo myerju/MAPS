@@ -1,0 +1,51 @@
+---
+title: "CERT video split"
+output: html_document
+---
+
+##Load Packages
+```{r import_load_packages}
+pkgs <- c("dplyr", "tidyr", "readr") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+##Import Data
+###MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK
+```{r import_csv}
+#on julianne's laptop 
+#log <-  (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-002/raw/MAPS-002_log.tsv")) 
+
+#on julianne's boxsync
+#log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-002/raw/MAPS-002_log.tsv")) 
+
+#on MAPS1 Hard drive
+log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-002/raw/MAPS-002_log.tsv")) 
+```  
+
+We want a quick csv to give us the start and end times of the emotion reels. We will use the csv numbers in our python script to cut the videos.
+
+```{r start_end_timepoints}
+emotion_start <- log %>%
+  filter(entry=="Emotion Reels/Surprise A.mov") %>%
+  filter(event=="start") %>%
+  select(timestamp)
+
+emotion_end <- log %>%
+  filter(entry=="Emotion Reels/Yawning A.mov") %>%
+  filter(event=="end") %>%
+  select(timestamp)
+
+emotion_times <- cbind(emotion_start, emotion_end)
+colnames(emotion_times) <- c("start", "end")
+```
+
+```{r export_csv}
+write.csv(emotion_times, file = "/Volumes/MAPS1/Participant Recordings/MAPS-002/CERT/MAPS-002_emotions.csv")
+```
+
