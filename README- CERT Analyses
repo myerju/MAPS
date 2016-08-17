@@ -9,12 +9,16 @@ In order for the script to work correctly, you must make sure to do a Find and R
 
 Importing Data
   - CERT's output is a text file but script is included to import data in multiple formats from multiple locations.
+  - We have solved this by splitting the import process into two chunks:
+	1) Set working directory (to indicate user and computer)
+	2) Select file type to import correctly.
   - Supported file types:
     - excel file (.xlsx)
     - csv file (.csv)
     - text file (.txt)
   - All import code is commented out, so make sure to uncomment (delete the # in front of) the file type and location that you are importing
-  - R File paths contain separators written as "/", but windows file paths are written with "\" separators (MAKE SURE TO FIX THIS IF CHANGING FILE PATH)
+  - R File paths contain separators written as "/", but Windows file paths are written with "\" separators (MAKE SURE TO FIX THIS IF CHANGING FILE PATH)
+  - Since there is variation on whether our data file has excess header rows, Excel and CSV files now have a second import step to tell R to skip all unnecessary rows. This takes 2 lines of code, make sure to comment them both out if importing cvs or excel. Text files only need one line of code.
 
 Tidying Data
 CERT will sometimes fail during original analysis. If this happens, there are two types of errors seen.
