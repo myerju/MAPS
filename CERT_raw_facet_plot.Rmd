@@ -20,55 +20,67 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 
 Make sure to do a Find and Replace All command to replace the dataframe name for the whole code to work.
 
-### todo: Julianne 
-### fix capitalization in replace all
+```{r set_working directory}
+#setting our wd up here will make importing data less wordy
+
+#MARISSA'S LAPTOP
+#setwd("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim")
+
+#JULIANNE'S DESKTOP
+#setwd("/Users/myerju/Box Sync/MAPS/Data/CERT")
+
+#JULIANNE'S LAPTOP
+#setwd("/Users/julianne/Box Sync/MAPS/Data/CERT/")
+
+```
+
 ```{r import_data}
-#On Box for Julianne - change name to match csv
 ##CSV FILE
-#JMM_yawn1 <- read_csv("/Users/myerju/Box Sync/MAPS/Data/JMM_yawn1.csv", skip=2, col_names= FALSE, na = "NaN")
+#cert_stim_4 <- read_csv("cert_stim_4.csv")
+#cert_stim_4 <- read.csv(file = "cert_stim_4.csv", skip = as.numeric(rownames(cert_stim_4[which(cert_stim_4[,1]=='File'),])[1]), na="NaN")
 
 #EXCEL FILE
-#JMM_yawn1 <- read_excel("/Users/myerju/Box Sync/MAPS/Data/JMM_yawn1.xlsx", skip=2, col_names= FALSE, na = "NaN")
+#cert_stim_4 <- read_excel("cert_stim_4.xlsx")
+#cert_stim_4 <- read_excel("cert_stim_4.xlsx", skip = as.numeric(rownames(cert_stim_4[which(cert_stim_4[,1]=='File'),])[1]), na = "NaN")
 
 #TEXT FILE
-#JMM_yawn1 <- read.table("/Users/myerju/Box Sync/MAPS/Data/JMM_yawn1.txt", sep="\t", skip = 2, header = FALSE, na.strings = "NaN")
-
-#On Laptop for Julianne - change name to match csv
-
-##CSV FILE
-#JMM_yawn1 <- read_csv("/Users/julianne/Box Sync/MAPS/Data/JMM_yawn1.csv", skip=2, col_names= FALSE, na = "NaN")
-
-#EXCEL FILE
-#JMM_yawn1 <- read_excel("/Users/julianne/Box Sync/MAPS/Data/JMM_yawn1.xlsx", skip=2, col_names= FALSE, na = "NaN")
-
-#TEXT FILE
-#JMM_yawn1 <- read.table("/Users/julianne/Box Sync/MAPS/Data/JMM_yawn1.txt", sep="\t", skip = 2, header = FALSE, na.strings = "NaN")
-
-#On Laptop for Marissa - change name to match csv
-
-##CSV FILE
-#JMM_yawn1 <- read_csv("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim/cert_stim_1.1_data.csv", skip=2, col_names= FALSE, na = "NaN")
-
-#EXCEL FILE
-#JMM_yawn1 <- read_excel("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim/cert_stim_1.1_data.csv", skip=2, col_names= FALSE, na = "NaN")
-
-#TEXT FILE
-#JMM_yawn1 <- read.table("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim/cert_stim_1.1_data.txt", sep="\t", skip = 2, header = FALSE, na.strings = "NaN")
-
-
-#For other laptop or path type follow the below pattern
-#name <- read_csv("/put/path/here/name.csv", skip=2, col_names= FALSE, na = "NaN") 
-#use find command and replace "name"
+#cert_stim_4 <- read.table("cert_stim_4.txt", sep="\t", skip = 2, header = FALSE, na.strings = "NaN")
 ```
 
 
 #Tidying Our Data
 
+Sometimes, CERT completely fails and cannot analyze the video. We are still trying to figure out why this happens. For the mean time, if we want to know if a video is a ERROR file then we will compare the amount of NAs to data points. IF YOU GET AN ERROR FILE, THEN DON'T CONTINUE WITH ANALYSIS.
+
+```{r is_error_file}
+#number of NAs in file
+na_number <- sum(is.na(cert_stim_4))
+
+#number of datapoints in file
+non_na_number <- sum(!is.na(cert_stim_4))
+
+#make a na dataframe to use in our ifelse statement
+na_df <- data.frame(a = NA, b = NA, C = NA)
+
+#if statement for determining validity of file - replace our working dataframe with some NA dataframe to stop any more analysis on an incorrect dataset.
+if(na_number > non_na_number) {
+  print("HIGH NUMBER OF NAs in FILE") 
+  #cert_stim_4 <- na_df        #This will break the code so that you     cannot run any of the other analyses on faulty data.
+}  else {
+  print("LOW NUMBER OF NAs in FILE")
+}
+```
+
+
 Some data has an issue with its output, and restarts the process after too many NAs have been found. We should put some process in place that tells R if a restart happens. We also don't want to work with the X,Y coordinates of facial features at the moment so those have to go too (the first 25 columns).
 
 ```{r delete_faulty_restart_data}
 #find out if duplicates exist
-duplicates <- duplicated(JMM_yawn1[,1]) 
+duplicates <- duplicated(cert_stim_4[,1]) 
+
+#does the restart include a different video title?
+filename_col <- cert_stim_4[,1]
+str(filename_col)
 
 #assign the number of duplicate values to an object for our ifelse statement
 restart_value <- sum(duplicates == "TRUE")
@@ -78,9 +90,9 @@ restart_row <- which(grepl("TRUE", duplicates))
 
 #tidy up our data depending on if duplicate values are present
 if(restart_value == 0){
-   JMM_yawn1 <- JMM_yawn1[-(1), -(1:25)]
+   cert_stim_4 <- cert_stim_4[-(1), -(1:25)]
 } else {
-   JMM_yawn1 <- JMM_yawn1[-(1:restart_row), -(1:25)]
+   cert_stim_4 <- cert_stim_4[-(1:restart_row), -(1:25)]
 }
 ```
 
@@ -98,29 +110,29 @@ names <- c("AU_1_Inner_Brow_Raise", "AU_2_Outer_Brow_Raise", "AU_4_Brow_Lower", 
            "Neutral_v3")
 
 #assign column names to new tidied dataframe
-colnames(JMM_yawn1) <- names
+colnames(cert_stim_4) <- names
 
 #make all column names lowercase
-names(JMM_yawn1) <- names(JMM_yawn1) %>%
+names(cert_stim_4) <- names(cert_stim_4) %>%
   tolower() 
 ```
 
 For some reason, the data was importing as factors so we'll just make sure that everything up to this point is numeric.
 ```{r make_data_numeric}
 #convert data into numeric
-JMM_yawn1[,c(1:42)] <- as.numeric(as.character(unlist(JMM_yawn1[,c(1:42)])))
+cert_stim_4[,c(1:42)] <- as.numeric(as.character(unlist(cert_stim_4[,c(1:42)])))
 
 #make sure to double check your work by using structure command
-str(JMM_yawn1)
+str(cert_stim_4)
 ```
 
 Great, now we need a column that tells us what frame each data point corresponds to. The amount of frames will differ by video length, so we'll keep our code universal by creating an object that equals the amount of frames.
 ```{r create_frame_column}
 #How many frames do we have in this video?
-end <- nrow(JMM_yawn1)
+end <- nrow(cert_stim_4)
 
 #create frame column
-JMM_yawn1<- JMM_yawn1 %>%   
+cert_stim_4<- cert_stim_4 %>%   
   mutate(frame= c(1:end))
 ```
 
@@ -130,13 +142,13 @@ JMM_yawn1<- JMM_yawn1 %>%
 ###Single AU plot
 If you want to look at any particular AU, then here is the code for just one line plot.
 
-*Note:* PROBLEM TO SOLVE - cert_stim_1.1_data.csv has an odd graph format - let's start to problem solve different types of data
 *Note:* Future analysis- Align the peaks of yawn AUs (start with jaw drop). We will need to add a second layer with new dataframe source or combine the two if we want to facet the AUs.
         1. Start with 2 yawns from same person and then move on to yawns from 2 different people
         2. Find peak by using `max()`, subtract difference and create graph with aligned peaks
 ```{r plot_1_au}
-au<- ggplot(JMM_yawn1, aes(x=frame, y=au_26_jaw_drop))
+au<- ggplot(cert_stim_4, aes(x=frame, y=au_26_jaw_drop))
 au<- au+ geom_line()
+#au<- au+ geom_smooth()  #uncomment if you want smoothed graph
 au<- au+ ggtitle("Jaw Drop (AU26)")
 au
 ```
@@ -148,33 +160,34 @@ au
 TRIAL: We are going to remove gender, glasses, pitch, roll, and yaw.
  - Alternatively, we can use scales = free y to let us see our graphs in ranges that are better suited for their data.
 ```{r remove_variables}
-JMM_yawn1_new <- JMM_yawn1 %>%
+cert_stim_4_new <- cert_stim_4 %>%
   select(-c(gender, glasses, pitch, roll, yaw))
 ```
 
 For creating a faceted graph, the data will have to be long. We'll use _gather_ from _dplyr_.
 ```{r create_long_df}
-JMM_yawn1_long <- gather(JMM_yawn1_new, au, intensity, au_1_inner_brow_raise:neutral_v3)
+cert_stim_4_long <- gather(cert_stim_4_new, au, intensity, au_1_inner_brow_raise:neutral_v3)
 ```
 
 ### Mulitple AU Facet Plot
 
 Now we can make our faceted plot.
 ```{r au_facet_plot}
-au_total<- ggplot(JMM_yawn1_long, aes(x=frame, y=intensity))
+au_total<- ggplot(cert_stim_4_long, aes(x=frame, y=intensity))
 au_total<- au_total+ geom_line()
+#au_total<- au_total+ geom_smooth() - add smoothing for high na datasets
 au_total<- au_total+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
 au_total<- au_total+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
 au_total
 
 #For Julianne's box
-#ggsave(au_total, file = "/Users/myerju/Box Sync/MAPS/figs/JMM_yawn1.pdf", height=9, width=12) 
+#ggsave(au_total, file = "/Users/myerju/Box Sync/MAPS/figs/cert_stim_4.pdf", height=9, width=12) 
 
 #On Laptop for Julianne - change name to match csv
-#ggsave(au_total, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/JMM_yawn1.pdf", height=9, width=12)
+#ggsave(au_total, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/cert_stim_4.pdf", height=9, width=12)
 
 #On Laptop for Marissa - change name to match csv
-#ggsave(au_total, file = "/Users/Marissa Renda/Documents/Other Work/JMM_yawn1.pdf", height=9, width=12)
+#ggsave(au_total, file = "/Users/Marissa Renda/Documents/Other Work/cert_stim_4.pdf", height=9, width=12)
 
 #For other user
 #ggsave(au_total, file = "match/beginning/file/path/figs/name_of_plot.pdf", height=9, width=12) 
@@ -188,27 +201,27 @@ I think it may be nice to add some colors to help us further interpret the data.
 Let's start by deciding what we want our color to tell us. Right now, it will be red if it is positive (over 0) and blue if it is negative (under 0). This will hopefully allow us to quickly pick out changes in important AUs for our facial expression.
 
 ```{r assign_color}
-JMM_yawn1_color <- JMM_yawn1_long %>%
+cert_stim_4_color <- cert_stim_4_long %>%
   mutate(color = ifelse(intensity > 0, "#de2d26", "#2c7fb8"))
 ```
 
 
 ```{r au_facet_plot_color}
-au_color<- ggplot(JMM_yawn1_color, aes(x=frame, y=intensity))
+au_color<- ggplot(cert_stim_4_color, aes(x=frame, y=intensity))
 au_color<- au_color+ geom_path(aes(color=intensity))
 au_color<- au_color+ scale_color_gradient(limits= c(-4, 4), low="blue", high="red")
 au_color<- au_color+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
 au_color<- au_color+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
 au_color
 
+#On Laptop for Marissa - change name to match csv
+#ggsave(au_color, file = "Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/Figures/cert_stim_4_color.pdf", height=9, width=12)
+
 #For Julianne's box
-#ggsave(au_color, file = "/Users/myerju/Box Sync/MAPS/figs/JMM_yawn1_color.pdf", height=9, width=12) 
+#ggsave(au_color, file = "/Users/myerju/Box Sync/MAPS/figs/cert_stim_4_color.pdf", height=9, width=12) 
 
 #On Laptop for Julianne - change name to match csv
-#ggsave(au_color, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/JMM_yawn1_color.pdf", height=9, width=12)
-
-#On Laptop for Marissa - change name to match csv
-#ggsave(au_color, file = "/Users/Marissa Renda/Documents/Other Work/JMM_yawn1_color.pdf", height=9, width=12)
+#ggsave(au_color, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/cert_stim_4_color.pdf", height=9, width=12)
 
 #For other user
 #ggsave(au_color, file = "match/beginning/file/path/figs/name_of_plot_color.pdf", height=9, width=12) 
@@ -220,21 +233,21 @@ au_color
 
 Now we'll try to see what pitch, roll, and yaw do with each other.
 ```{r head_placement_groups}
-pitch <- JMM_yawn1 %>%
+pitch <- cert_stim_4 %>%
   select(pitch)
 
-roll <- JMM_yawn1 %>%
+roll <- cert_stim_4 %>%
   select(roll)
 
-yaw <- JMM_yawn1 %>%
+yaw <- cert_stim_4 %>%
   select(yaw)
 
-coef(lm(pitch ~ yaw, data = JMM_yawn1))
+coef(lm(pitch ~ yaw, data = cert_stim_4))
 
 ```
 
 ```{r head_placement_plot_pitch+yaw}
-au_placement <- ggplot(JMM_yawn1, aes(x=pitch, y=yaw))
+au_placement <- ggplot(cert_stim_4, aes(x=pitch, y=yaw))
 au_placement <- au_placement+ geom_point()
 au_placement <- au_placement+ geom_smooth(method = "lm")
 au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Yaw)")
@@ -242,7 +255,7 @@ au_placement
 ```
 
 ```{r head_placement_plot_pitch+roll}
-au_placement <- ggplot(JMM_yawn1, aes(x=pitch, y=roll))
+au_placement <- ggplot(cert_stim_4, aes(x=pitch, y=roll))
 au_placement <- au_placement+ geom_point()
 au_placement <- au_placement+ geom_smooth(method = "lm")
 au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Roll)")
