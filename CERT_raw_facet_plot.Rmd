@@ -24,7 +24,7 @@ Make sure to do a Find and Replace All command to replace the dataframe name for
 #setting our wd up here will make importing data less wordy
 
 #MARISSA'S LAPTOP
-#setwd("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim")
+#setwd("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY 499 - Senior Thesis/CERT/cert_stim")
 
 #JULIANNE'S DESKTOP
 #setwd("/Users/myerju/Box Sync/MAPS/Data/CERT")
@@ -177,7 +177,7 @@ au_total<- ggplot(cert_stim_4_long, aes(x=frame, y=intensity))
 au_total<- au_total+ geom_line()
 #au_total<- au_total+ geom_smooth() - add smoothing for high na datasets
 au_total<- au_total+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
-au_total<- au_total+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
+au_total<- au_total+ ggtitle("cert_stim_4")  #Make sure to change this with the expression you're analyzing.
 au_total
 
 #For Julianne's box
@@ -187,7 +187,7 @@ au_total
 #ggsave(au_total, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/cert_stim_4.pdf", height=9, width=12)
 
 #On Laptop for Marissa - change name to match csv
-#ggsave(au_total, file = "/Users/Marissa Renda/Documents/Other Work/cert_stim_4.pdf", height=9, width=12)
+#ggsave(au_total, file = "/Users/Marissa Renda/Documents/Senior Fall 2016/PSY 499 - Senior Thesis/CERT/cert_stim/cert_stim_4.pdf", height=9, width=12)
 
 #For other user
 #ggsave(au_total, file = "match/beginning/file/path/figs/name_of_plot.pdf", height=9, width=12) 
@@ -211,7 +211,7 @@ au_color<- ggplot(cert_stim_4_color, aes(x=frame, y=intensity))
 au_color<- au_color+ geom_path(aes(color=intensity))
 au_color<- au_color+ scale_color_gradient(limits= c(-4, 4), low="blue", high="red")
 au_color<- au_color+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
-au_color<- au_color+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
+au_color<- au_color+ ggtitle("cert_stim_4")  #Make sure to change this with the expression you're analyzing.
 au_color
 
 #On Laptop for Marissa - change name to match csv
@@ -250,7 +250,7 @@ coef(lm(pitch ~ yaw, data = cert_stim_4))
 au_placement <- ggplot(cert_stim_4, aes(x=pitch, y=yaw))
 au_placement <- au_placement+ geom_point()
 au_placement <- au_placement+ geom_smooth(method = "lm")
-au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Yaw)")
+au_placement <- au_placement+ ggtitle("cert_stim_4 - Head Placement (Pitch and Yaw)")
 au_placement
 ```
 
@@ -258,7 +258,7 @@ au_placement
 au_placement <- ggplot(cert_stim_4, aes(x=pitch, y=roll))
 au_placement <- au_placement+ geom_point()
 au_placement <- au_placement+ geom_smooth(method = "lm")
-au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Roll)")
+au_placement <- au_placement+ ggtitle("cert_stim_4 - Head Placement (Pitch and Roll)")
 au_placement
 ```
 
