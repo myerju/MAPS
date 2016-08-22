@@ -5,7 +5,7 @@ output: html_document
 
 ##Load Packages
 ```{r import_load_packages}
-pkgs <- c("dplyr", "tidyr", "readr") # list packages needed
+pkgs <- c("dplyr", "tidyr", "readr", "lubridate", "fuzzyjoin") # list packages needed
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg)) 
@@ -19,33 +19,118 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ###MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK
 ```{r import_csv}
 #on julianne's laptop 
-#log <-  (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-002/raw/MAPS-002_log.tsv")) 
-
-#on julianne's boxsync
-#log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-002/raw/MAPS-002_log.tsv")) 
-
-#on MAPS1 Hard drive
-log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-002/raw/MAPS-002_log.tsv")) 
+log <-  (read.csv("/Volumes/MAPS1/Participant Recordings/MAPS-005/synced/MAPS-005_log_webcam_sync.csv")) 
 ```  
 
-We want a quick csv to give us the start and end times of the emotion reels. We will use the csv numbers in our python script to cut the videos.
+Before we can run CERT, we need to split our videos on which section we want to run. For now, we will be running the emotion reels. 
+```{r start_end_duration}
+log$timestamp<- as.character(log$timestamp)
 
-```{r start_end_timepoints}
 emotion_start <- log %>%
   filter(entry=="Emotion Reels/Surprise A.mov") %>%
   filter(event=="start") %>%
   select(timestamp)
+
+duration_start <- hms(emotion_start)
 
 emotion_end <- log %>%
   filter(entry=="Emotion Reels/Yawning A.mov") %>%
   filter(event=="end") %>%
   select(timestamp)
 
-emotion_times <- cbind(emotion_start, emotion_end)
-colnames(emotion_times) <- c("start", "end")
+duration_end <- hms(emotion_end)
+
+emotion_duration <- duration_end - duration_start
+
+POSIXct_emotion_duration <- parse_date_time(emotion_duration,"ms")
+emotion_duration <- format(POSIXct_emotion_duration, format="%H:%M:%OS")
+#emotion_duration <- paste0("00:", emotion_duration)
+```
+
+#Export 
+```{r create_table}
+emotion_times <- cbind(emotion_start, emotion_end, emotion_duration)
+colnames(emotion_times) <- c("start", "end", "duration")
 ```
 
 ```{r export_csv}
-write.csv(emotion_times, file = "/Volumes/MAPS1/Participant Recordings/MAPS-002/CERT/MAPS-002_emotions.csv")
+write.csv(emotion_times, file = "/Volumes/MAPS1/Participant Recordings/MAPS-005/CERT/MAPS-005_emotions.csv")
 ```
+
+##Python Script
+open up the terminal and run 
+
+`cd..
+ cd..
+ cd Volumes/MAPS1/Participant\ Recordings
+ jupyter notebook
+`
+
+This will open up that folder in jupyter notebook. Choose emotions_split and run the script on your id numbers.
+```{python}
+import re, os, subprocess, csv
+
+ids = ['005']
+for id in ids:
+    movpath = 'MAPS-' + id + '/raw/MAPS-' + id + '.mp4'
+    csvpath = 'MAPS-' + id + '/CERT/MAPS-' + id + '_emotions.csv'
+    output = 'MAPS-' + id + '/CERT/MAPS-' + id + '_emotions.mp4'
+    with open(csvpath, 'rt') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            start_time = row[1]
+            duration = row[3]
+subprocess.check_call(["ffmpeg", "-ss", start_time, "-t", duration, "-i", movpath, "-vcodec", "copy", "-acodec", "copy", output])
+```
+
+
+##CERT
+Now that you have your cut video in the CERT folder, you can open up CERT and run it through the system.
+
+When it is done processing (it may take a long time), save the txt file in your CERT analysis folder on the harddrive.
+
+
+##Cleaning up CERT output
+
+```{r import_cert_csv}
+cert <- read.table("/Volumes/MAPS1/Participant Recordings/MAPS-005/CERT/MAPS-005_emotions.txt", sep="\t", skip = 2, header = T, na.strings = "NaN")
+```
+
+```{r find_timestamp_diff}
+start_row <- as.numeric(which(log$timestamp == emotion_start[1,]))
+end_row <- as.numeric(which(log$timestamp == emotion_end[1,]))
+
+emotion_log <- log[start_row:end_row,]
+
+emotion_log <- mutate(emotion_log, timestamp_diff_sec = (timestamp_sec - lag(timestamp_sec)))
+
+emotion_log[1,10] = 0
+
+emotion_log <- mutate(emotion_log, cum_timestamp = cumsum(timestamp_diff_sec))
+
+#How many frames do we have in this video?
+end <- nrow(cert)
+
+#create frame column
+cert<- cert %>%   
+  mutate(frame= c(1:end))
+
+cert <- cert %>%
+  mutate(timestamp_sec = ((frame-1)*(1/30)))
+```
+
+STILL DOES NOT WORK - GO HOME
+#fuzzy join log and eyetracker within .06 of the timestamp_sec column
+cert <- difference_left_join(cert, emotion_log, by = "timestamp_sec", max_dist =.06) 
+
+#find unique values and fill cells below until next unique value
+sync_data$entry <- na.locf(sync_data$entry,na.rm = FALSE) 
+```
+
+CERT analyzes videos frame by frame. The video is taken at 30 frames per second. This section is `emotion_duration_sec` long and has `emotion_duration_sec*30` frames in it.
+
+
+
+
+
 
