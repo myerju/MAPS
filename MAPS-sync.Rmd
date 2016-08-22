@@ -1,0 +1,216 @@
+---
+title: "sync_output"
+output: html_document
+---
+MAPS has 4 kinds of output data:
+
+1) Log file: text file, timestamps for beginning and end of each video, touchscreen timestamps and locations, and pause, skip, or repeats - synced with eyetracker csv
+
+2) Eyetracker: csv file, timestamps synced with log file
+
+3) Webcam video: .wmv file, includes audio file, collected on separate computer
+
+4) Accelerometer: csv file, data logged to internal chip, has button that creates a spike in data and audible beep to sync audio and data
+
+5) Audio file: *added 7/7/16*, wav file, starts simultaneously with the session so it is synced with log file and eyetracker file, records accelerometer beep for full syncronisation
+
+#SYNCING WEBCAMERA AND STIMULUS PRESENTATION LOG
+
+##Method 1: Touchscreen and examiner voice
+The first 10 participants were recorded with touchscreen tap and the examiner saying the numbers "one" through "four". The timestamps for the spoken numbers were found manually by opening the webcam videos in audacity. 
+
+###Load Packages
+```{r import_load_packages}
+pkgs <- c("dplyr", "tidyr", "readr", "lubridate") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+###Import Data
+```{r import_data}
+#on julianne's computer 
+log <-  (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-005/raw/MAPS-005_log.tsv"))
+video_sync <- read.csv("/Users/myerju/Box Sync/MAPS/Data/Sync/sync_timestamps.csv", header = T) #csv of manually recorded timestamps
+
+#on julianne's laptop
+#log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-005/raw/MAPS-005_log.tsv")) 
+#video_sync <- read.csv("/Users/myerju/Box Sync/MAPS/Data/Sync/sync_timestamps.csv", header = T) #csv of manually recorded timestamps
+```
+
+We will create a column that gives the difference between the log timestamp and the webcam timestamp.
+```{r video_diff}
+video_sync <- video_sync %>%
+  mutate(vid_diff = one_time_sec - touch_time_sec)
+```
+
+There are a few where the session started before the webcamera so if the difference is < 0, the difference will be subtracted from the timestamp and if the difference is > 0, the difference will be added to the timestamp.
+```{r adjust_sync}
+#create an ID column in log
+log <- log %>%
+  mutate(ID = "MAPS-005")
+
+#make ID a character type
+video_sync$ID <- as.character(video_sync$ID)
+
+#left join by ID number
+log_sync <- left_join(log, video_sync, by = c("ID"))
+
+#create new vectors of timestamp_sec for log_nodesc and eyetracker
+log_timestamp_sec <- (as.numeric(as.POSIXct(strptime(log$timestamp, format = "%H:%M:%OS"))) -
+    as.numeric(as.POSIXct(strptime("0", format = "%S"))))
+
+#Create a new column for join 
+log <- log%>%
+  mutate(timestamp_sec = log_timestamp_sec)
+
+#mutate a new column based on if difference is positive or negative
+log_sync <- mutate(log_sync, webcam_timestamp_sec = 
+                     ifelse(vid_diff > 0, timestamp_sec + vid_diff, 
+                            timestamp_sec - abs(vid_diff)))
+
+#fix the format for a column in format HH:MM:SS.msec
+webcam_timestamp <- format(.POSIXct(log_sync$webcam_timestamp_sec), "%M:%OS")
+webcam_timestamp <- paste0("00:", webcam_timestamp)
+
+log_sync <- log_sync %>%
+  mutate(webcam_timestamp = webcam_timestamp)
+```
+
+```{r delete_extra_col}
+extra <- c("ID", "one_time", "one_time_sec", "touch_time", "touch_time_sec", "webcam_beep", "maincomp_beep", "notes")
+
+log_sync <- log_sync[, !names(log_sync) %in% extra]
+```
+
+
+##Export Synced Log file
+```{r export_csv}
+write.csv(log_sync, file = "/Volumes/MAPS1/Participant Recordings/MAPS-005/synced/MAPS-005_log_webcam_sync.csv")
+```
+
+
+##Method 2: Aligning beeps
+For the audio syncing, we are starting with a script written by Kevin Sheng (ksheng7746@gmail.com) in 2015.
+
+```{r import_load_packages}
+pkgs <- c("tuneR", "signal") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+```{r import_data}
+audio <- readWave("C:/Users/Kevin/Desktop/cryingbeep2.wav", from = 0, to = Inf, units = "minutes") #replace with correct path
+```
+
+Sampling Rate for syncronizing Shimmers?
+
+```{r sampling_rate}
+samplingRate <- 44100 - (44100 %% shimmerSamplingRate)        #Largest multiple of shimmer sampling rate under 44100 
+shimmerSamplingRate <- 512
+blockSize <- samplingRate / shimmerSamplingRate
+targetFrequency <- 4100  
+downsamples <- downsample(audio, samplingRate)
+samples <- downsamples@left
+size <- dim(array(samples))
+```
+
+```{r original_script}
+goertzel <- function(samples){          #Single bin Fourier Transform, returns magnitude of signal at target frequency for block of samples
+  N <- 200                              #FFT Points
+  k <- round(0.5 + (N * targetFrequency / samplingRate))
+  w <- (2 * pi * k) / N
+  cosine <- cos(w)
+  sine <- sin(w)
+  coeff <- 2 * cosine
+  Q0 <- 0
+  Q1 <- 0
+  Q2 <- 0
+  
+  for(i in seq(1, dim(array(samples)), 1))
+  {
+    Q0 <- coeff * Q1 - Q2 + samples[i]
+    Q2 <- Q1
+    Q1 <- Q0
+  }
+  
+  #   Re <- (Q1 - Q2 * cosine)            
+  #   Im <- (Q2 * sine)
+  #   magnitude <- Re^2 + Im^2
+  magnitude <- sqrt(Q1^2 + Q2^2 - Q1 * Q2 * coeff)          #optimized Goertzel for magnitude only
+  scale <- log(magnitude)
+  Q0 <- 0
+  Q1 <- 0
+  Q2 <- 0
+  return(scale)
+}
+
+hann <- function(samples){              #Windowing
+  windowed <- numeric()
+  for(i in seq(1, dim(array(samples)), 1)){
+    windowed[i] <- .5 * (1 - cos(2 * pi * i / dim(array(samples)))) * samples[i]
+  }
+  return(windowed)
+}
+
+readAudio <- function(){
+  
+  magnitude <- numeric(size / blockSize)      #Pre-allocate arrays to improve performance
+  timer <- numeric(size / blockSize)
+  beep <- 0
+  j <- 1
+  
+  for(i in seq(1, size, blockSize)){          #Perform Goertzel on block of samples, results in "Goertzeled" sampling rate equal to Shimmer sampling rate
+    magnitude[j] <- goertzel(hann(samples[i:(i + blockSize - 1)]))  
+    timer[j] <- i / samplingRate 
+    j <- j + 1
+  }
+  plot(magnitude, type = "l")
+  # audioData <- data.frame(timer, magnitude)
+  # plot(audioData, type = "l")        
+  return(magnitude)
+}
+
+parseShimmerData <- function(){
+  header <- scan("C:/Users/Kevin/Desktop/ShimmerData.csv", skip = 3, nlines = 1, sep = ",", what = character())         #Too many header lines
+  data <- read.csv("C:/Users/Kevin/Desktop/ShimmerData.csv", skip = 4, header = FALSE)
+  names(data) <- header
+  data[,c(1,3,5:9)] <- list(NULL)
+  for(i in seq(1, nrow(data), 1)){                      #ccf() can give errors for unchanging series
+    if(data$mVolts[i] == 0){
+      data$mVolts[i] <- sample(0:1, 1)
+    }
+  }
+  # data$mSecs <- data$mSecs - data$mSecs[1]            #Shimmer3 timestamp does not begin when recording starts, but when data collection starts
+  # plot(data$mVolts, type = "l")
+  return(data$mVolts)
+}
+
+maxCCF<- function(a,b)                  #Use cross correlation to find lag
+{
+  d <- ccf(a, b, plot = TRUE, na.action = na.pass, lag.max = size / blockSize)
+  cor = d$acf
+  lag = d$lag
+  res = data.frame(cor,lag)
+  res_max = lag[which.max(res$cor)]
+  return(res_max)
+} 
+
+offset <- round(maxCCF(parseShimmerData(), readAudio()) / shimmerSamplingRate, 3)
+
+if(offset < 0){
+  print(paste0("The microphone began recording ", abs(offset), " seconds before the Shimmer3" ))
+}else{
+  print(paste0("The microphone began recording ", abs(offset), " seconds after the Shimmer3" ))
+}
+
+```
