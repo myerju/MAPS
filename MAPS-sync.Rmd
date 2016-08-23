@@ -34,11 +34,11 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ###Import Data
 ```{r import_data}
 #on julianne's computer 
-log <-  (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-005/raw/MAPS-005_log.tsv"))
+log <-  (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-007/raw/MAPS-007_log.tsv"))
 video_sync <- read.csv("/Users/myerju/Box Sync/MAPS/Data/Sync/sync_timestamps.csv", header = T) #csv of manually recorded timestamps
 
 #on julianne's laptop
-#log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-005/raw/MAPS-005_log.tsv")) 
+#log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-007/raw/MAPS-007_log.tsv")) 
 #video_sync <- read.csv("/Users/myerju/Box Sync/MAPS/Data/Sync/sync_timestamps.csv", header = T) #csv of manually recorded timestamps
 ```
 
@@ -52,7 +52,7 @@ There are a few where the session started before the webcamera so if the differe
 ```{r adjust_sync}
 #create an ID column in log
 log <- log %>%
-  mutate(ID = "MAPS-005")
+  mutate(ID = "MAPS-007")
 
 #make ID a character type
 video_sync$ID <- as.character(video_sync$ID)
@@ -65,7 +65,7 @@ log_timestamp_sec <- (as.numeric(as.POSIXct(strptime(log$timestamp, format = "%H
     as.numeric(as.POSIXct(strptime("0", format = "%S"))))
 
 #Create a new column for join 
-log <- log%>%
+log_sync <- log_sync%>%
   mutate(timestamp_sec = log_timestamp_sec)
 
 #mutate a new column based on if difference is positive or negative
@@ -90,7 +90,7 @@ log_sync <- log_sync[, !names(log_sync) %in% extra]
 
 ##Export Synced Log file
 ```{r export_csv}
-write.csv(log_sync, file = "/Volumes/MAPS1/Participant Recordings/MAPS-005/synced/MAPS-005_log_webcam_sync.csv")
+write.csv(log_sync, file = "/Volumes/MAPS1/Participant Recordings/MAPS-007/synced/MAPS-007_log_webcam_sync.csv")
 ```
 
 
