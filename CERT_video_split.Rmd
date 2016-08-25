@@ -16,10 +16,22 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
 ##Import Data
-###MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK
-```{r import_csv}
+```{r define_id}
+##ID
+#enter child ID - eventually mega script will define this
+id <- "MAPS-006"
+
+##Location- servername
+#on julianne's computer 
+username <- "myerju"
+
 #on julianne's laptop 
-log <-  (read.csv("/Volumes/MAPS1/Participant Recordings/MAPS-007/synced/MAPS-007_log_webcam_sync.csv")) 
+#username <- "julianne"
+```
+
+```{r import_csv}
+#import data
+log <-  (read.csv(paste("", "Volumes", "MAPS1", "Participant Recordings", id, "synced", paste(id,"_log_webcam_sync.csv", sep = ""), sep = "/"))) 
 ```  
 
 Before we can run CERT, we need to split our videos on which section we want to run. For now, we will be running the emotion reels. 
@@ -54,7 +66,7 @@ colnames(emotion_times) <- c("start", "end", "duration")
 ```
 
 ```{r export_csv}
-write.csv(emotion_times, file = "/Volumes/MAPS1/Participant Recordings/MAPS-007/CERT/MAPS-007_emotions_timepoints.csv")
+write.csv(emotion_times, file = paste("", "Volumes", "MAPS1", "Participant Recordings", id, "CERT", paste(id,"_emotions_timepoints.csv", sep = ""), sep = "/"))
 ```
 
 ##Python Script
@@ -95,12 +107,15 @@ When it is done processing (it may take a long time), save the txt file in your 
 CERT analyzes videos frame by frame. The video is taken at 30 frames per second. This section is `emotion_duration_sec` long and has `emotion_duration_sec*30` frames in it.
 
 ```{r import_cert_csv}
-cert <- read.table("/Volumes/MAPS1/Participant Recordings/MAPS-007/CERT/MAPS-007_emotions.txt", sep="\t", skip = 2, header = T, na.strings = "NaN")
+#define pathways
+cert_file <- paste("", "Volumes", "MAPS1", "Participant Recordings", id, "CERT", paste(id,"_emotions.txt", sep = ""), sep = "/")
+
+cert <- read.table(cert_file, sep="\t", skip = 2, header = T, na.strings = "NaN")
 ```
 
 ```{r find_timestamp_diff}
-start_row <- as.numeric(which(log$timestamp == emotion_start[1,]))
-end_row <- as.numeric(which(log$timestamp == emotion_end[1,]))
+start_row <- as.numeric(which(log$webcam_timestamp == emotion_start[1,]))
+end_row <- as.numeric(which(log$webcam_timestamp == emotion_end[1,]))
 
 emotion_log <- log[start_row:end_row,]
 
@@ -156,7 +171,7 @@ names(cert) <- names(cert) %>%
 ```
 
 ```{r export_csv}
-write.csv(cert, file = "/Volumes/MAPS1/Participant Recordings/MAPS-007/CERT/MAPS-007_emotion_cert.csv")
+write.csv(cert, file = paste("", "Volumes", "MAPS1", "Participant Recordings", id, "CERT", paste(id,"_emotion_cert.csv", sep = ""), sep = "/"))
 ```
 
 
