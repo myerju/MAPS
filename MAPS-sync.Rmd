@@ -34,7 +34,7 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ###Import Data
 ```{r define_id}
 #enter child ID - eventually mega script will define this
-id <- "MAPS-004"
+id <- "MAPS-016"
 
 #on julianne's computer 
 username <- "myerju"
@@ -105,7 +105,7 @@ write.csv(log_sync, file =paste("", "Volumes", "MAPS1", "Participant Recordings"
 For the audio syncing, we are starting with a script written by Kevin Sheng (ksheng7746@gmail.com) in 2015.
 
 ```{r import_load_packages}
-pkgs <- c("tuneR", "signal", "seewave") # list packages needed
+pkgs <- c("tuneR", "signal", "seewave", "dpylr", "tidyr") # list packages needed
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg)) 
@@ -115,18 +115,38 @@ ipak <- function(pkg){
 suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
+```{r read_audio}
+main_audio <- readWave(paste("", "Volumes", "MAPS1", "Participant Recordings", id, "raw", paste(id,".wav", sep = ""), sep = "/"), from=0, to= Inf, units = "seconds")
+```
 
-Sampling Rate for syncronizing Shimmers?
+```{r audio_plot}
+min_count <- sum(main_audio@left)/60
+
+
+main_audio_beg <- main_audio %>%
+  main_audio@samp.rate
+
+afilter(main_audio@left, main_audio@samp.rate, plot = T, listen = F, output = "matrix")
+```
+
 
 ```{r sampling_rate}
-samplingRate <- 44100 - (44100 %% shimmerSamplingRate)        #Largest multiple of shimmer sampling rate under 44100 
-shimmerSamplingRate <- 512
-blockSize <- samplingRate / shimmerSamplingRate
-targetFrequency <- 4100  
-downsamples <- downsample(audio, samplingRate)
-samples <- downsamples@left
-size <- dim(array(samples))
+samp_rate <- 44100  #audio sampling rate
+shimmer_samp_rate <- 50
+block_size <- round(samplingRate / shimmerSamplingRate) #gives number of audio samples for every shimmer sample
 ```
+
+
+NEED TO CONVERT:
+
+[y,Fs] = audioread('aug_18_beep.mp3','native');
+x=double(y(:,2));
+
+t=linspace(0,length(y)/Fs,length(y));
+figure;plot(t,x);xlabel('time (s)');ylabel('Amplitude'); title('Audio signal') # plot audio signal
+
+
+Sampling Rate for syncronizing Shimmers?
 
 ```{r original_script}
 goertzel <- function(samples){          #Single bin Fourier Transform, returns magnitude of signal at target frequency for block of samples
@@ -157,7 +177,10 @@ goertzel <- function(samples){          #Single bin Fourier Transform, returns m
   Q2 <- 0
   return(scale)
 }
+```
 
+
+```{r}
 hann <- function(samples){              #Windowing
   windowed <- numeric()
   for(i in seq(1, dim(array(samples)), 1)){
@@ -165,6 +188,11 @@ hann <- function(samples){              #Windowing
   }
   return(windowed)
 }
+```
+
+
+```{r audio_peak}
+#Get the peak from audio signal (look for 4175Hz signal)
 
 readAudio <- function(){
   
@@ -173,7 +201,7 @@ readAudio <- function(){
   beep <- 0
   j <- 1
   
-  for(i in seq(1, size, blockSize)){          #Perform Goertzel on block of samples, results in "Goertzeled" sampling rate equal to Shimmer sampling rate
+  for(i in seq(1, block_size, length(x)-block_size)){          #Perform Goertzel on block of samples, results in "Goertzeled" sampling rate equal to Shimmer sampling rate
     magnitude[j] <- goertzel(hann(samples[i:(i + blockSize - 1)]))  
     timer[j] <- i / samplingRate 
     j <- j + 1
@@ -183,7 +211,39 @@ readAudio <- function(){
   # plot(audioData, type = "l")        
   return(magnitude)
 }
+```
 
+j=1;
+for i=1:blockSize:length(x)-blockSize 
+x1=x(i:(i+blockSize-1));
+N=length(x1);
+[maxValue,indexMax] = max(abs(fft(x1-mean(x1))));
+if ~isempty(indexMax)
+f=4175;
+freq_indices = round(f/Fs*N) + 1;
+mag(j)=abs(goertzel(x1,freq_indices));
+else
+  mag(j)=0;
+end
+j=j+1;
+end
+
+[S1,I1] = max(mag);%% search for the peak
+t1=t(1:blockSize:length(x)-blockSize); %% time scale for the samples version of audio
+disp(['Beep detected ' num2str(t1(I1)),' seconds after video was started']);
+
+audio=zeros(length(mag),1);
+audio(I1)=1;%% single peak representing beep in audio signal 
+
+figure; %% plot single peak representations
+plot(t1,audio);title('audio time');xlabel('time (s)');
+
+
+
+
+
+
+```{r}
 parseShimmerData <- function(){
   header <- scan("C:/Users/Kevin/Desktop/ShimmerData.csv", skip = 3, nlines = 1, sep = ",", what = character())         #Too many header lines
   data <- read.csv("C:/Users/Kevin/Desktop/ShimmerData.csv", skip = 4, header = FALSE)
