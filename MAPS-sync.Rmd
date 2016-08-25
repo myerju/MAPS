@@ -32,14 +32,21 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
 ###Import Data
-```{r import_data}
-#on julianne's computer 
-log <-  (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-007/raw/MAPS-007_log.tsv"))
-video_sync <- read.csv("/Users/myerju/Box Sync/MAPS/Data/Sync/sync_timestamps.csv", header = T) #csv of manually recorded timestamps
+```{r define_id}
+#enter child ID - eventually mega script will define this
+id <- "MAPS-004"
 
-#on julianne's laptop
-#log <- (read_tsv("/Volumes/MAPS1/Participant Recordings/MAPS-007/raw/MAPS-007_log.tsv")) 
-#video_sync <- read.csv("/Users/myerju/Box Sync/MAPS/Data/Sync/sync_timestamps.csv", header = T) #csv of manually recorded timestamps
+#on julianne's computer 
+username <- "myerju"
+
+#on julianne's laptop 
+#username <- "julianne"
+```
+
+```{r import_data}
+#import data
+log <-  read_tsv(paste("", "Volumes", "MAPS1", "Participant Recordings", id, "raw", paste(id,"_log.tsv", sep = ""), sep = "/"))
+video_sync <- read.csv(paste("", "Users", username, "Box Sync", "MAPS", "Data", "Sync", "sync_timestamps.csv", sep = "/"), header = T) #csv of manually recorded timestamps
 ```
 
 We will create a column that gives the difference between the log timestamp and the webcam timestamp.
@@ -90,7 +97,7 @@ log_sync <- log_sync[, !names(log_sync) %in% extra]
 
 ##Export Synced Log file
 ```{r export_csv}
-write.csv(log_sync, file = "/Volumes/MAPS1/Participant Recordings/MAPS-007/synced/MAPS-007_log_webcam_sync.csv")
+write.csv(log_sync, file =paste("", "Volumes", "MAPS1", "Participant Recordings", id, "synced", paste(id,"_log_webcam_sync.csv", sep = ""), sep = "/")) 
 ```
 
 
