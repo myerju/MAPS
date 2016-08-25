@@ -105,7 +105,7 @@ write.csv(log_sync, file =paste("", "Volumes", "MAPS1", "Participant Recordings"
 For the audio syncing, we are starting with a script written by Kevin Sheng (ksheng7746@gmail.com) in 2015.
 
 ```{r import_load_packages}
-pkgs <- c("tuneR", "signal") # list packages needed
+pkgs <- c("tuneR", "signal", "seewave") # list packages needed
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
   if (length(new.pkg)) 
@@ -115,9 +115,6 @@ ipak <- function(pkg){
 suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
-```{r import_data}
-audio <- readWave("C:/Users/Kevin/Desktop/cryingbeep2.wav", from = 0, to = Inf, units = "minutes") #replace with correct path
-```
 
 Sampling Rate for syncronizing Shimmers?
 
@@ -221,3 +218,35 @@ if(offset < 0){
 }
 
 ```
+
+
+
+JULIANNE'S ATTEMPT AT AUDIO SYNC
+
+```{r import_data}
+audio <- readWave("/Users/julianne/Desktop/MAPS-016.wav", from = 0, to = Inf, units = "minutes") #replace with correct path
+```
+
+```{r}
+main_audio <- readWave("/Users/julianne/Desktop/MAPS-016.wav", from = 0, to = 10, units = "second") #first minute of main computer's audio
+
+webcam_audio <- readWave("/Users/julianne/Desktop/MAPS-016.wav", from = 0, to = Inf, units = "minutes") 
+```
+
+```{r amplitude_graph}
+timeArray <- (0:(960000-1)) / main_audio@samp.rate
+timeArray <- timeArray * 1000 #scale to milliseconds
+
+s1 <- main_audio@left
+
+plot(timeArray, s1, type='l', col='black', xlab='Time (ms)', ylab='Amplitude') 
+```
+
+```{r afilter}
+afilter(s1, main_audio@samp.rate, threshold = 50, plot = TRUE, listen = FALSE, output = "matrix")
+
+ffilter(s1, main_audio@samp.rate, from = 4000, to = 4200, bandpass = TRUE, custom = NULL, wl = 1024, ovlp = 75, wn = "hanning", fftw = FALSE, output="matrix")
+
+4100
+```
+
