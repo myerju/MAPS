@@ -139,8 +139,8 @@ block_size <- round(samplingRate / shimmerSamplingRate) #gives number of audio s
 
 NEED TO CONVERT:
 
-[y,Fs] = audioread('aug_18_beep.mp3','native');
-x=double(y(:,2));
+[y,Fs] = audioread('aug_18_beep.mp3','native'); #make an array of y = aug..., x= native?
+x=double(y(:,2));   #Read columns 1-2 of all rows in y; double returns the double-precision value for X
 
 t=linspace(0,length(y)/Fs,length(y));
 figure;plot(t,x);xlabel('time (s)');ylabel('Amplitude'); title('Audio signal') # plot audio signal
