@@ -34,7 +34,9 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ###Import Data
 ```{r define_id}
 #enter child ID - eventually mega script will define this
-id <- "MAPS-016"
+id <- "MAPS-021"
+
+sync_type1 <- c("MAPS-001", "MAPS-002", "MAPS-003", "MAPS-004", "MAPS-005", "MAPS-006", "MAPS-007", "MAPS-008", "MAPS-009", "MAPS-010", "MAPS-011", "MAPS-012")
 
 #on julianne's computer 
 username <- "myerju"
@@ -51,15 +53,18 @@ video_sync <- read.csv(paste("", "Users", username, "Box Sync", "MAPS", "Data", 
 
 We will create a column that gives the difference between the log timestamp and the webcam timestamp.
 ```{r video_diff}
-video_sync <- video_sync %>%
-  mutate(vid_diff = one_time_sec - touch_time_sec)
+if (id %in% sync_type1) {
+  video_sync <- mutate(video_sync, vid_diff = one_time_sec - touch_time_sec)
+} else {
+  video_sync <- mutate(video_sync, vid_diff = webcam_beep_start_sec - maincomp_beep_start_sec)
+}
 ```
 
 There are a few where the session started before the webcamera so if the difference is < 0, the difference will be subtracted from the timestamp and if the difference is > 0, the difference will be added to the timestamp.
 ```{r adjust_sync}
 #create an ID column in log
 log <- log %>%
-  mutate(ID = "MAPS-007")
+  mutate(ID = id)
 
 #make ID a character type
 video_sync$ID <- as.character(video_sync$ID)

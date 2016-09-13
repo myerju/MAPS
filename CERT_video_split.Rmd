@@ -19,7 +19,9 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```{r define_id}
 ##ID
 #enter child ID - eventually mega script will define this
-id <- "MAPS-006"
+id <- "MAPS-021"
+
+sync_type1 <- c("MAPS-001", "MAPS-002", "MAPS-003", "MAPS-004", "MAPS-005", "MAPS-006", "MAPS-007", "MAPS-008", "MAPS-009", "MAPS-010", "MAPS-011", "MAPS-012")
 
 ##Location- servername
 #on julianne's computer 
@@ -121,7 +123,11 @@ emotion_log <- log[start_row:end_row,]
 
 emotion_log <- mutate(emotion_log, timestamp_diff_sec = (timestamp_sec - lag(timestamp_sec)))
 
-emotion_log[1,10] = 0
+if (id %in% sync_type1) {
+  emotion_log[1,10] = 0
+} else {
+  emotion_log[1,14] = 0
+}
 
 emotion_log <- mutate(emotion_log, cum_timestamp = cumsum(timestamp_diff_sec))
 ```
@@ -136,6 +142,7 @@ cert<- cert %>%
 cert <- cert %>%
   mutate(cum_timestamp = ((frame-1)*(1/30)))
 ```
+
 ```{r join_cert_log}
 #fuzzy join log and eyetracker within .06 of the timestamp_sec column
 cert <- difference_left_join(cert, emotion_log, by = "cum_timestamp", max_dist =.06) 
