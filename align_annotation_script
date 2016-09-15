@@ -1,0 +1,24 @@
+ssh joel
+cd /home/adamjo
+ls annotations (tell you what is done)
+cd MAPS-annotation
+cd scripts
+cd output-scripts
+./Boom_Boom_Balloon_short.mov.sh (replace with video shell script that has been annotated)
+
+
+cd /home/adamjo/annotations
+
+set up git repo (only once)
+git clone git@repo.cslu.ohsu.edu:adamjo/MAPS-alignment.git
+
+
+cd MAPS-alignment
+cd data
+cd annotations
+scp joel:/home/adamjo/annotations/* .
+
+add logs and eyetracking data in logs
+
+cd /home/adamjo/MAPS-alignment
+python align_annotation.py
