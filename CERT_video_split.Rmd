@@ -19,9 +19,9 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```{r define_id}
 ##ID
 #enter child ID - eventually mega script will define this
-id <- "MAPS-021"
+id <- "MAPS-015"
 
-sync_type1 <- c("MAPS-001", "MAPS-002", "MAPS-003", "MAPS-004", "MAPS-005", "MAPS-006", "MAPS-007", "MAPS-008", "MAPS-009", "MAPS-010", "MAPS-011", "MAPS-012")
+sync_type1 <- c("MAPS-001", "MAPS-002", "MAPS-003", "MAPS-004", "MAPS-005", "MAPS-006", "MAPS-007", "MAPS-008", "MAPS-009", "MAPS-010", "MAPS-011")
 
 ##Location- servername
 #on julianne's computer 
@@ -51,6 +51,12 @@ emotion_end <- log %>%
   filter(entry=="Emotion Reels/Yawning A.mov") %>%
   filter(event=="end") %>%
   select(webcam_timestamp)
+
+#if skipped yawn reel
+#emotion_end <- log %>%
+  #filter(entry=="Emotion Reels/Happy A.mov") %>%
+  #filter(event=="end") %>%
+  #select(webcam_timestamp)
 
 duration_end <- hms(emotion_end)
 
