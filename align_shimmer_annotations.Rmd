@@ -1,0 +1,118 @@
+---
+title: "Align shimmer data to Annotations""
+output: html_notebook
+---
+##Load Packages
+```{r import_load_packages}
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "fuzzyjoin", "zoo", "readr") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+#Shimmer Data
+```{r import_shimmer_data}
+id <- "GM-020"
+limb <- "_left_arm"
+user <- "julianne"
+shim_filename <- paste(id, limb, ".csv", sep = "")
+
+shimmer <- read.csv(paste("", "Users", user, "Desktop", "Current Annotations", shim_filename, sep = "/"))
+```
+
+```{r clean_shimmer}
+#get rid of row with types of data
+shimmer <- shimmer[-1,]
+
+#clean up headers
+shim_names <- c("timestamp_unix", "accel_ln_x", "accel_ln_y", "accel_ln_z", "accel_wr_x", "accel_wr_y", "accel_wr_z", "gyro_x", "gyro_y", "gyro_z", "mag_x", "mag_y", "mag_z") 
+colnames(shimmer) <- shim_names
+
+#make numeric
+#shimmer$timestamp_unix <- format(shimmer$timestamp_unix, scientific=F)
+shimmer$timestamp_unix <- as.numeric(as.character(shimmer$timestamp_unix))
+```
+
+```{r cumulative_timestamp}
+#find time differences between accelerometer readings
+shimmer <- mutate(shimmer, timestamp_diff_msec = (timestamp_unix - lag(timestamp_unix)))
+
+#make timepoint 0 at top of column
+shimmer[1,14] = 0
+
+#create cumulative timestamp column
+shimmer <- mutate(shimmer, cum_timestamp = cumsum(timestamp_diff_msec))
+```
+
+```{r export_shimmer_only}
+#export aligned dataset -if you want to stop here
+#write.csv(shimmer, file = paste("", "Users", user, "Desktop", "Current Annotations", paste(id, limb, "markup_ready.csv", sep = "_"), sep = "/"))
+```
+
+#Annotations
+```{r import_annotations}
+accel_filename <- paste(id, limb, "_annotations.csv", sep = "")
+
+annotations <- read.csv(paste("", "Users", user, "Desktop", "Current Annotations", accel_filename, sep = "/"))
+```
+
+```{r clean_annotations}
+#clean up columns and headers
+annotations <-annotations %>%
+  select(-contains ("hh")) 
+
+colnames(annotations) <- c("begin_time_msec", "end_time_msec","duration_msec","annotation", "row_start", "row_end", "filename")  
+```
+
+```{r aligned_timestamps}
+#make new columns with aligned timestamps (-142.925 sec) 
+time_diff <- 142925
+
+annotations <- mutate(annotations, align_start = begin_time_msec - time_diff)
+annotations <- mutate(annotations, align_end = end_time_msec - time_diff)
+```
+
+```{r export_annotation_only}
+#export annotations only -if you want to stop here
+#write.csv(annotations, file = paste("", "Users", user, "Desktop", "Current Annotations", paste(id, limb, "annotations.csv", sep = "_"), sep = "/"))
+```
+
+#Join Annotations and Shimmer Data
+```{r prep_for_join}
+#create subset of data for joining
+annot_sub <- annotations[,c(1, 4)]
+colnames(annot_sub) <- c("cum_timestamp","annotation")  
+annot_sub$timestamp_unix <- as.numeric(as.character(annot_sub$cum_timestamp))
+
+#create start and end time for parsing shimmer section
+annot_start <- annot_sub[1,1]
+annot_end <- annot_sub[nrow(annot_sub), 1]
+
+#select shimmer data for annotated portion
+shimmer_section <- shimmer %>%
+  filter(cum_timestamp >= annot_start & cum_timestamp <= annot_end)
+```
+
+```{r fuzzyjoin_filldown}
+#fuzzy join log and eyetracker within .06 of the timestamp_sec column
+annotated_shimmer <- difference_left_join(shimmer_section, annot_sub, by = "cum_timestamp", max_dist =19.4) 
+
+#find unique values and fill cells below until next unique value
+annotated_shimmer$annotation <- na.locf(annotated_shimmer$annotation,na.rm = FALSE) 
+```
+
+```{r clean_annotated_shimmer}
+names(annotated_shimmer)
+
+annotated_shimmer <- annotated_shimmer[, -c(14:16, 18)]
+```
+
+```{r export_annotated_shimmer}
+write.csv(annotated_shimmer, file = paste("", "Users", user, "Desktop", "Current Annotations", paste(id, limb, "annotated_shimmer.csv", sep = "_"), sep = "/"))
+```
+
+
