@@ -1,0 +1,148 @@
+---
+title: "CERT Facet Plot"
+output: html_document
+---
+
+```{r import_load_packages, include=FALSE}
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "readxl", "readr") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+Make sure to do a Find and Replace All command to replace the dataframe name for the whole code to work.
+
+```{r set_working directory}
+#setting our wd up here will make importing data less wordy
+
+#MARISSA'S LAPTOP
+#setwd("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim")
+
+#JULIANNE'S DESKTOP
+#setwd("/Users/myerju/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
+
+#JULIANNE'S LAPTOP
+#setwd("/Users/julianne/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
+
+```
+
+```{r import_data}
+##CSV FILE
+cert_stim_4 <- read_csv("cert_stim_4_clean.csv")
+```
+
+###More Tidying - Wide to Long Data
+
+TRIAL: We are going to remove gender, glasses, pitch, roll, and yaw.
+ - Alternatively, we can use scales = free y to let us see our graphs in ranges that are better suited for their data.
+```{r remove_variables}
+cert_stim_4_new <- cert_stim_4 %>%
+  select(-c(gender, glasses, pitch, roll, yaw))
+```
+
+For creating a faceted graph, the data will have to be long. We'll use _gather_ from _dplyr_.
+```{r create_long_df}
+cert_stim_4_long <- gather(cert_stim_4_new, au, intensity, au_1_inner_brow_raise:neutral_v3)
+```
+
+### Mulitple AU Facet Plot
+
+Now we can make our faceted plot.
+```{r au_facet_plot}
+au_total<- ggplot(cert_stim_4_long, aes(x=frame, y=intensity))
+au_total<- au_total+ geom_line()
+#au_total<- au_total+ geom_smooth() - add smoothing for high na datasets
+au_total<- au_total+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
+au_total<- au_total+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
+au_total
+
+#For Julianne's box
+#ggsave(au_total, file = "/Users/myerju/Box Sync/MAPS/figs/cert_stim_4.pdf", height=9, width=12) 
+
+#On Laptop for Julianne - change name to match csv
+#ggsave(au_total, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/cert_stim_4.pdf", height=9, width=12)
+
+#On Laptop for Marissa - change name to match csv
+#ggsave(au_total, file = "/Users/Marissa Renda/Documents/Other Work/cert_stim_4.pdf", height=9, width=12)
+
+#For other user
+#ggsave(au_total, file = "match/beginning/file/path/figs/name_of_plot.pdf", height=9, width=12) 
+```
+
+
+### Adding Colors
+
+I think it may be nice to add some colors to help us further interpret the data.
+
+Let's start by deciding what we want our color to tell us. Right now, it will be red if it is positive (over 0) and blue if it is negative (under 0). This will hopefully allow us to quickly pick out changes in important AUs for our facial expression.
+
+```{r assign_color}
+cert_stim_4_color <- cert_stim_4_long %>%
+  mutate(color = ifelse(intensity > 0, "#de2d26", "#2c7fb8"))
+```
+
+
+```{r au_facet_plot_color}
+au_color<- ggplot(cert_stim_4_color, aes(x=frame, y=intensity))
+au_color<- au_color+ geom_path(aes(color=intensity))
+au_color<- au_color+ scale_color_gradient(limits= c(-4, 4), low="blue", high="red")
+au_color<- au_color+ facet_wrap(~au, scales = "free_y") #Take out free_y scales if you want y axis to be fixed for all AUs (free_y will make all y axes different, but it will allow us to see more detail on graph)
+au_color<- au_color+ ggtitle("Yawn-1 - AUs")  #Make sure to change this with the expression you're analyzing.
+au_color
+
+#On Laptop for Marissa - change name to match csv
+#ggsave(au_color, file = "Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/Figures/cert_stim_4_color.pdf", height=9, width=12)
+
+#For Julianne's box
+#ggsave(au_color, file = "/Users/myerju/Box Sync/MAPS/figs/cert_stim_4_color.pdf", height=9, width=12) 
+
+#On Laptop for Julianne - change name to match csv
+#ggsave(au_color, file = "/Users/myersju/Desktop/Box Sync/MAPS/Figs/cert_stim_4_color.pdf", height=9, width=12)
+
+#For other user
+#ggsave(au_color, file = "match/beginning/file/path/figs/name_of_plot_color.pdf", height=9, width=12) 
+```
+
+*Note:* I can't quite get these colors right. I'd like to have it split at zero but when I ask it to take my color column into account, it splits into two different lines. 
+
+#Head Placement (Pitch, Roll, and Yaw)
+
+Now we'll try to see what pitch, roll, and yaw do with each other.
+```{r head_placement_groups}
+pitch <- cert_stim_4 %>%
+  select(pitch)
+
+roll <- cert_stim_4 %>%
+  select(roll)
+
+yaw <- cert_stim_4 %>%
+  select(yaw)
+
+coef(lm(pitch ~ yaw, data = cert_stim_4))
+
+```
+
+```{r head_placement_plot_pitch+yaw}
+au_placement <- ggplot(cert_stim_4, aes(x=pitch, y=yaw))
+au_placement <- au_placement+ geom_point()
+au_placement <- au_placement+ geom_smooth(method = "lm")
+au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Yaw)")
+au_placement
+```
+
+```{r head_placement_plot_pitch+roll}
+au_placement <- ggplot(cert_stim_4, aes(x=pitch, y=roll))
+au_placement <- au_placement+ geom_point()
+au_placement <- au_placement+ geom_smooth(method = "lm")
+au_placement <- au_placement+ ggtitle("Yawn-1 - Head Placement (Pitch and Roll)")
+au_placement
+```
+
+
+*Note:* Figure out how to make pitch, roll, and yaw plots into a facet grid.
+
+

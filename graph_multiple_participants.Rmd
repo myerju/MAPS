@@ -1,0 +1,16 @@
+---
+title: "Graph with Multiple Observations"
+output: html_document
+---
+This is a quick hint guide for graphing multiple observations in one plot. There are several ways to do this. I've chosen the merge and facet way because you will be able to facet multiple graphs later if desired. Here is another way that doesn't require any merging: http://stackoverflow.com/questions/19921842/plotting-multiple-time-series-on-the-same-plot-using-ggplot
+
+
+Step 1: Import your csvs(there will be one per individual)
+
+Step 2: Create a column on each to identify it (e.g. Participant 1, Observation 1, or just 1)
+*Hint: Use dplyr::mutate and keep the name of the column consistent in each dataset (e.g. participant, observation...)
+
+Step 3: Merge the dataframes using the frame number as your merging column
+*Hint: the frame's column name must be identical in each dataset
+
+Step 4: You should now have a wide dataset with all of your intensities split by participant number and lined up by frame. You can graph that now. Use the same code from the ggplot AU plot but differentiate participants by using "color = column_name" in the geom_line layer. 

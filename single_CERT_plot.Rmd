@@ -1,0 +1,55 @@
+---
+title: "CERT Single Plot"
+output: html_document
+---
+
+```{r import_load_packages, include=FALSE}
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "readxl", "readr") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+Make sure to do a Find and Replace All command to replace the dataframe name for the whole code to work.
+
+```{r set_working directory}
+#setting our wd up here will make importing data less wordy
+
+#MARISSA'S LAPTOP
+#setwd("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim")
+
+#JULIANNE'S DESKTOP
+#setwd("/Users/myerju/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
+
+#JULIANNE'S LAPTOP
+#setwd("/Users/julianne/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
+
+```
+
+```{r import_data}
+##CSV FILE
+cert_stim_4 <- read_csv("cert_stim_4_clean.csv")
+```
+
+#Single AU plot
+If you want to look at any particular AU, then here is the code for just one line plot.
+
+*Note:* Future analysis- Align the peaks of yawn AUs (start with jaw drop). We will need to add a second layer with new dataframe source or combine the two if we want to facet the AUs.
+        1. Start with 2 yawns from same person and then move on to yawns from 2 different people
+        2. Find peak by using `max()`, subtract difference and create graph with aligned peaks
+```{r plot_1_au}
+au<- ggplot(cert_stim_4, aes(x=frame, y=au_26_jaw_drop))
+au<- au+ geom_line()
+#au<- au+ geom_smooth()  #uncomment if you want smoothed graph
+au<- au+ ggtitle("Jaw Drop (AU26)")
+au
+```
+
+
+**FOR MARISSA TO DO: Add a plot that has multiple observations on it using this example (http://stackoverflow.com/questions/19921842/plotting-multiple-time-series-on-the-same-plot-using-ggplot)**
+
+

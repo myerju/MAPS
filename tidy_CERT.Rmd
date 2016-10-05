@@ -1,0 +1,148 @@
+---
+title: "CERT_tidy"
+output: html_document
+---
+
+This is a template for analyzing CERT raw data. It will tidy the data and create a single graph for looking at 1 AU or a faceted series of graphs of all AU intensities.
+
+CERT analyzes videos frame by frame so it is frame aligned, not time aligned. Later we can convert frames to seconds to align to longer video sessions.
+
+```{r import_load_packages, include=FALSE}
+pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "readxl", "readr") # list packages needed
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+suppressMessages(ipak(pkgs)) # take function, and give it that list
+```
+
+Make sure to do a Find and Replace All command to replace the dataframe name for the whole code to work.
+
+```{r set_working directory}
+#setting our wd up here will make importing data less wordy
+
+#MARISSA'S LAPTOP
+#setwd("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim")
+
+#JULIANNE'S DESKTOP
+#setwd("/Users/myerju/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
+
+#JULIANNE'S LAPTOP
+#setwd("/Users/julianne/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
+
+```
+
+```{r import_data}
+##CSV FILE
+#cert_stim_4 <- read_csv("cert_stim_4.csv")
+#cert_stim_4 <- read.csv(file = "cert_stim_4.csv", skip = as.numeric(rownames(cert_stim_4[which(cert_stim_4[,1]=='File'),])[1]), na="NaN")
+
+#EXCEL FILE
+#cert_stim_4 <- read_excel("cert_stim_4.xlsx")
+#cert_stim_4 <- read_excel("cert_stim_4.xlsx", skip = as.numeric(rownames(cert_stim_4[which(cert_stim_4[,1]=='File'),])[1]), na = "NaN")
+
+#TEXT FILE
+#cert_stim_4 <- read.table("cert_stim_4.txt", sep="\t", skip = 2, header = FALSE, na.strings = "NaN")
+```
+
+
+#Tidying Our Data
+
+Sometimes, CERT completely fails and cannot analyze the video. We are still trying to figure out why this happens. For the mean time, if we want to know if a video is a ERROR file then we will compare the amount of NAs to data points. IF YOU GET AN ERROR FILE, THEN DON'T CONTINUE WITH ANALYSIS.
+
+```{r is_error_file}
+#number of NAs in file
+na_number <- sum(is.na(cert_stim_4))
+
+#number of datapoints in file
+non_na_number <- sum(!is.na(cert_stim_4))
+
+#make a na dataframe to use in our ifelse statement
+na_df <- data.frame(a = NA, b = NA, C = NA)
+
+#if statement for determining validity of file - replace our working dataframe with some NA dataframe to stop any more analysis on an incorrect dataset.
+if(na_number > non_na_number) {
+  print("HIGH NUMBER OF NAs in FILE") 
+  #cert_stim_4 <- na_df        #This will break the code so that you     cannot run any of the other analyses on faulty data.
+}  else {
+  print("LOW NUMBER OF NAs in FILE")
+}
+```
+
+
+Some data has an issue with its output, and restarts the process after too many NAs have been found. We should put some process in place that tells R if a restart happens. We also don't want to work with the X,Y coordinates of facial features at the moment so those have to go too (the first 25 columns).
+
+```{r delete_faulty_restart_data}
+#find out if duplicates exist
+duplicates <- duplicated(cert_stim_4[,1]) 
+
+#does the restart include a different video title?
+filename_col <- cert_stim_4[,1]
+str(filename_col)
+
+#assign the number of duplicate values to an object for our ifelse statement
+restart_value <- sum(duplicates == "TRUE")
+
+#assign the row number where the first duplicate value appears - this will tell us where we want to cut our rows
+restart_row <- which(grepl("TRUE", duplicates))
+
+#tidy up our data depending on if duplicate values are present
+if(restart_value == 0){
+   cert_stim_4 <- cert_stim_4[-(1), -(1:25)]
+} else {
+   cert_stim_4 <- cert_stim_4[-(1:restart_row), -(1:25)]
+}
+```
+
+
+Now since the raw output has some header rows that aren't actual headers, we will have to rename them. This works for us anyways since the raw header names won't work well with our graphs later.
+```{r define_col_names}
+names <- c("AU_1_Inner_Brow_Raise", "AU_2_Outer_Brow_Raise", "AU_4_Brow_Lower",  "AU_5_Eye_Widen",
+           "AU_9_Nose_Wrinkle",  "AU_10_Lip_Raise",  "AU_12_Lip_Corner_Pull",	"AU_14_Dimpler",	
+           "AU_15_Lip_Corner_Depressor",	"AU_17_Chin_Raise",	"AU_20_Lip_stretch",	"AU_6_Cheek_Raise",
+           "AU_7_Lids_Tight",	"AU_18_Lip_Pucker",	"AU_23_Lip_Tightener",	"AU_24_Lip_Presser",
+           "AU_25_Lips_Part",	"AU_26_Jaw_Drop",	"AU_28_Lips_Suck",	"AU_45_Blink/Eye_Closure",
+           "Fear_Brow",	"Distress_Brow",	"AU_10_Left",	"AU_12_Left",	"AU_14_Left",	"AU_10_Right",
+           "AU_12_Right",	"AU_14_Right",	"Gender",	"Glasses",	"Yaw",	"Pitch",	"Roll",	"Smile_Detector",
+           "Anger_v3",	"Contempt_v3",	"Disgust_v3",	"Fear_v3",	"Joy_v3",	"Sad_v3",	"Surprise_v3",	
+           "Neutral_v3")
+
+#assign column names to new tidied dataframe
+colnames(cert_stim_4) <- names
+
+#make all column names lowercase
+names(cert_stim_4) <- names(cert_stim_4) %>%
+  tolower() 
+```
+
+For some reason, the data was importing as factors so we'll just make sure that everything up to this point is numeric.
+```{r make_data_numeric}
+#convert data into numeric
+cert_stim_4[,c(1:42)] <- as.numeric(as.character(unlist(cert_stim_4[,c(1:42)])))
+
+#make sure to double check your work by using structure command
+str(cert_stim_4)
+```
+
+Great, now we need a column that tells us what frame each data point corresponds to. The amount of frames will differ by video length, so we'll keep our code universal by creating an object that equals the amount of frames.
+```{r create_frame_column}
+#How many frames do we have in this video?
+end <- nrow(cert_stim_4)
+
+#create frame column
+cert_stim_4<- cert_stim_4 %>%   
+  mutate(frame= c(1:end))
+```
+
+
+Let's export the data so that we can use clean data in our graphs.
+```{r export_data}
+#MARISSA'S LAPTOP
+#write.csv("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim/cert_stim_4_clean.csv")
+
+#JULIANNE'S DESKTOP
+#write.csv(cert_stim_4, file = "/Users/myerju/Box Sync/MAPS/Data/CERT/Marissa-Yawn/cert_stim_4_clean.csv")
+```
+

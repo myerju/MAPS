@@ -1,0 +1,12 @@
+---
+title: "fames_to_seconds"
+output: html_document
+---
+Some hints on how to convert frames to seconds.
+
+Step 1: Import data 
+
+Step 2: Find out frame rate of video
+
+Step 3: Create a new column (I suggest using dplyr::mutate) that has the video timestamp
+*hint: (frame-1) x (1/framerate)
