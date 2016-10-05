@@ -16,24 +16,10 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ```
 
 ##Import Data
-```{r define_id}
-##ID
-#enter child ID - eventually mega script will define this
-id <- "MAPS-015"
-
-sync_type1 <- c("MAPS-001", "MAPS-002", "MAPS-003", "MAPS-004", "MAPS-005", "MAPS-006", "MAPS-007", "MAPS-008", "MAPS-009", "MAPS-010", "MAPS-011")
-
-##Location- servername
-#on julianne's computer 
-username <- "myerju"
-
-#on julianne's laptop 
-#username <- "julianne"
-```
-
+###MAKE SURE TO REPLACE MAPS ID WITH CORRECT NUMBER USING FIND AND REPLACE ALL FOR FULL SCRIPT TO WORK
 ```{r import_csv}
-#import data
-log <-  (read.csv(paste("", "Volumes", "MAPS1", "Participant Recordings", id, "synced", paste(id,"_log_webcam_sync.csv", sep = ""), sep = "/"))) 
+#on julianne's laptop 
+log <-  (read.csv("/Volumes/MAPS1/Participant Recordings/MAPS-007/synced/MAPS-007_log_webcam_sync.csv")) 
 ```  
 
 Before we can run CERT, we need to split our videos on which section we want to run. For now, we will be running the emotion reels. 
@@ -52,12 +38,6 @@ emotion_end <- log %>%
   filter(event=="end") %>%
   select(webcam_timestamp)
 
-#if skipped yawn reel
-#emotion_end <- log %>%
-  #filter(entry=="Emotion Reels/Happy A.mov") %>%
-  #filter(event=="end") %>%
-  #select(webcam_timestamp)
-
 duration_end <- hms(emotion_end)
 
 emotion_duration <- duration_end - duration_start
@@ -74,7 +54,7 @@ colnames(emotion_times) <- c("start", "end", "duration")
 ```
 
 ```{r export_csv}
-write.csv(emotion_times, file = paste("", "Volumes", "MAPS1", "Participant Recordings", id, "CERT", paste(id,"_emotions_timepoints.csv", sep = ""), sep = "/"))
+write.csv(emotion_times, file = "/Volumes/MAPS1/Participant Recordings/MAPS-007/CERT/MAPS-007_emotions_timepoints.csv")
 ```
 
 ##Python Script
@@ -115,25 +95,18 @@ When it is done processing (it may take a long time), save the txt file in your 
 CERT analyzes videos frame by frame. The video is taken at 30 frames per second. This section is `emotion_duration_sec` long and has `emotion_duration_sec*30` frames in it.
 
 ```{r import_cert_csv}
-#define pathways
-cert_file <- paste("", "Volumes", "MAPS1", "Participant Recordings", id, "CERT", paste(id,"_emotions.txt", sep = ""), sep = "/")
-
-cert <- read.table(cert_file, sep="\t", skip = 2, header = T, na.strings = "NaN")
+cert <- read.table("/Volumes/MAPS1/Participant Recordings/MAPS-007/CERT/MAPS-007_emotions.txt", sep="\t", skip = 2, header = T, na.strings = "NaN")
 ```
 
 ```{r find_timestamp_diff}
-start_row <- as.numeric(which(log$webcam_timestamp == emotion_start[1,]))
-end_row <- as.numeric(which(log$webcam_timestamp == emotion_end[1,]))
+start_row <- as.numeric(which(log$timestamp == emotion_start[1,]))
+end_row <- as.numeric(which(log$timestamp == emotion_end[1,]))
 
 emotion_log <- log[start_row:end_row,]
 
 emotion_log <- mutate(emotion_log, timestamp_diff_sec = (timestamp_sec - lag(timestamp_sec)))
 
-if (id %in% sync_type1) {
-  emotion_log[1,10] = 0
-} else {
-  emotion_log[1,14] = 0
-}
+emotion_log[1,10] = 0
 
 emotion_log <- mutate(emotion_log, cum_timestamp = cumsum(timestamp_diff_sec))
 ```
@@ -148,7 +121,6 @@ cert<- cert %>%
 cert <- cert %>%
   mutate(cum_timestamp = ((frame-1)*(1/30)))
 ```
-
 ```{r join_cert_log}
 #fuzzy join log and eyetracker within .06 of the timestamp_sec column
 cert <- difference_left_join(cert, emotion_log, by = "cum_timestamp", max_dist =.06) 
@@ -184,7 +156,7 @@ names(cert) <- names(cert) %>%
 ```
 
 ```{r export_csv}
-write.csv(cert, file = paste("", "Volumes", "MAPS1", "Participant Recordings", id, "CERT", paste(id,"_emotion_cert.csv", sep = ""), sep = "/"))
+write.csv(cert, file = "/Volumes/MAPS1/Participant Recordings/MAPS-007/CERT/MAPS-007_emotion_cert.csv")
 ```
 
 
