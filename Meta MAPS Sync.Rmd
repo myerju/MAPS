@@ -1,0 +1,107 @@
+---
+title: "MAPS Sync"
+output: html_document
+---
+This document is a meta script to run all cleaning and analysis scripts on MAPS data after data is collected.
+
+#Step 1: Gathering Data
+After participant leaves, data must be gathered off of all devices and put onto the MAPS1 harddrive and the Box.
+
+**Put all original data into a folder named Raw**
+
+1) Webcamera Video: Let the video finish loading and then run through handbrake for a mp3 format of the video on the secondary laptop.
+2) Log: Grab out of MAPS-data folder on main laptop
+3) Eyetracker: Grab out of MAPS-data folder on main laptop
+4) Main Computer Audio: Grab out of MAPS-data folder on main laptop
+5) Accelerometer Data: Export from Consensys and grab from either main laptop or accelerometer computer
+
+#Step 2: Find sync times
+MAPS was started in several different ways when protocol was still being established.
+
+Sync Types:
+1) *1-2-3-4 Touch*: Examiner touched the screen as they said the numbers 1 through 4 aloud. This was supposed to give us a specific timepoint in the webcam audio to match to the touch in the sesison log. (Used in MAPS-001 - MAPS-011)
+
+2) *Double Audio*: Webcamera and main laptop collected audio at the same time. The accelerometer sync button was pushed in the first 30 seconds of the session to give both audios a distinct audio to line up. Time points are found using Audacity (goal: use an R script to find beep start times)
+
+3) *Manual*: If there was an error in the script, the main laptop did not record audio. Manual sync times were found an used in sync script. 
+
+**Add sync times to file: (/Box Sync/MAPS/Data/Sync/sync_timestamps.csv)**
+
+#Step 3: Clean Data
+
+Define computer and participant ID for following scripts
+```{r define_id_computer}
+#enter child ID
+id <- "MAPS-003"
+
+# enter location- servername
+username <- "myerju"
+```
+
+
+##Eyetracker:
+
+How to annotate eyetracker files (from Joel Adams):
+ 1. Delete the contents of "MAPS-alignment/data/annotations" on your local machine if you have new annotations to add
+ 2. Move all of the eyetracker.csv files and log.tsv files to MAPS-alignment/data/logs on your local machine
+ 3. If there are any differences in the MAPS-alignment script, git pull
+ 4. Open up terminal and run  `ssh joel`
+ 4. Run ready scripts in "/home/adamjo/MAPS-annotation/scripts/output_scripts"
+ 5. Verify that this generates an appropriate file in "/home/adamjo/annotations"
+      - they should have their original (weird) formatting and end with .csv like "Charli's Crafty Kitchen_short.mov.csv"
+ 6. On local machine, cd to MAPS-alignment/data/annotations
+ 7. scp joel:/home/adamjo/MAPS-annotation/scripts/output_scripts/*.csv .
+      - dot at the end of the command means “secure copy all of the csvs from joel at the path /…/…/output_scripts and put them in current directory
+ 8. Run 'python align_annotation.py util.py' on local machine
+
+##CERT: 
+
+Step 1: Merge log file and eyetracker csv
+
+```{r eyetracker_log_merge}
+source('/Users/myerju/Box Sync/MAPS/Scripts/Meta MAPS/log_eyetracker_sync.R')
+```
+
+Step 2: Pre-CERT Video Split Timestamps
+
+```{r pre_cert_timestamps}
+source('/Users/myerju/Box Sync/MAPS/Scripts/Meta MAPS/Pre-CERT_video_split.R')
+```
+
+Step 3: Split Video using python
+
+open up the terminal and run 
+
+`cd../..
+ cd Volumes/MAPS1/Participant\ Recordings
+ jupyter notebook
+`
+
+This will open up that folder in jupyter notebook. Choose emotions_split and run the script on your id numbers.
+``{python}
+import re, os, subprocess, csv
+
+ids = ['005']
+for id in ids:
+    movpath = 'MAPS-' + id + '/raw/MAPS-' + id + '.mp4'
+    csvpath = 'MAPS-' + id + '/CERT/MAPS-' + id + '_emotions_timepoints.csv'
+    output = 'MAPS-' + id + '/CERT/MAPS-' + id + '_emotions.mp4'
+    with open(csvpath, 'rt') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            start_time = row[1]
+            duration = row[3]
+subprocess.check_call(["ffmpeg", "-ss", start_time, "-t", duration, "-i", movpath, "-vcodec", "copy", "-acodec", "copy", output])
+``
+
+Step 4: Run Video through CERT
+Now that you have your cut video in the CERT folder, you can open up CERT and run it through the system. When it is done processing (it may take a long time), save the txt file in your CERT analysis folder on the harddrive.
+
+```{r pre_cert_timestamps}
+source('/Users/myerju/Box Sync/MAPS/Scripts/Meta MAPS/Post-CERT_cleanup.R')
+```
+
+Note: 2 warning messages will appear about "numerical expression has 2 elements: only the first used". This is a good thing. Don't worry about it :)
+
+
+
