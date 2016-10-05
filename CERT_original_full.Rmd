@@ -7,7 +7,7 @@ This is a template for analyzing CERT raw data. It will tidy the data and create
 
 CERT analyzes videos frame by frame so it is frame aligned, not time aligned. Later we can convert frames to seconds to align to longer video sessions.
 
-```{r import_load_packages}
+```{r import_load_packages, include=FALSE}
 pkgs <- c("dplyr", "tidyr", "ggplot2", "psych", "readxl", "readr") # list packages needed
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
@@ -27,10 +27,10 @@ Make sure to do a Find and Replace All command to replace the dataframe name for
 #setwd("/Users/Marissa Renda/Documents/Senior Fall 2016/PSY499 - Senior Thesis/CERT/cert_stim")
 
 #JULIANNE'S DESKTOP
-#setwd("/Users/myerju/Box Sync/MAPS/Data/CERT")
+#setwd("/Users/myerju/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
 
 #JULIANNE'S LAPTOP
-#setwd("/Users/julianne/Box Sync/MAPS/Data/CERT/")
+#setwd("/Users/julianne/Box Sync/MAPS/Data/CERT/Marissa-Yawn")
 
 ```
 
