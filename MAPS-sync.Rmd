@@ -34,7 +34,7 @@ suppressMessages(ipak(pkgs)) # take function, and give it that list
 ###Import Data
 ```{r define_id}
 #enter child ID - eventually mega script will define this
-id <- "MAPS-015"
+id <- "MAPS-003"
 
 sync_type1 <- c("MAPS-001", "MAPS-002", "MAPS-003", "MAPS-004", "MAPS-005", "MAPS-006", "MAPS-007", "MAPS-008", "MAPS-009", "MAPS-010", "MAPS-011")
 
