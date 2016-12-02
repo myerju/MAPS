@@ -1,11 +1,11 @@
-# install.packages("tuneR")
-# install.packages("signal")
-# library(signal)
-# library(tuneR)
+ install.packages("tuneR")
+ install.packages("signal")
+ library(signal)
+ library(tuneR)
 
-audio <- readWave("C:/Users/Kevin/Desktop/cryingbeep2.wav", from = 0, to = Inf, units = "minutes")
-samplingRate <- 44100 - (44100 %% shimmerSamplingRate)        #Largest multiple of shimmer sampling rate under 44100 
+audio <- readWave("/Users/myerju/Desktop/MAPS-017_beep.wav", from = 0, to = Inf, units = "minutes")
 shimmerSamplingRate <- 512
+samplingRate <- 44100 - (44100 %% shimmerSamplingRate)        #Largest multiple of shimmer sampling rate under 44100 
 blockSize <- samplingRate / shimmerSamplingRate
 targetFrequency <- 4100  
 downsamples <- downsample(audio, samplingRate)
@@ -68,10 +68,10 @@ readAudio <- function(){
 }
 
 parseShimmerData <- function(){
-  header <- scan("C:/Users/Kevin/Desktop/ShimmerData.csv", skip = 3, nlines = 1, sep = ",", what = character())         #Too many header lines
-  data <- read.csv("C:/Users/Kevin/Desktop/ShimmerData.csv", skip = 4, header = FALSE)
+  header <- scan("/Users/myerju/Desktop/maps_17_sync.csv", skip = 1, nlines = 1, sep = ",", what = character())         #Too many header lines
+  data <- read.csv("/Users/myerju/Desktop/maps_17_sync.csv", skip = 2, header = FALSE)
   names(data) <- header
-  data[,c(1,3,5:9)] <- list(NULL)
+  data <- data[- 2, -c(2:5, 10:15)]
   for(i in seq(1, nrow(data), 1)){                      #ccf() can give errors for unchanging series
     if(data$mVolts[i] == 0){
       data$mVolts[i] <- sample(0:1, 1)
@@ -92,7 +92,10 @@ maxCCF<- function(a,b)                  #Use cross correlation to find lag
   return(res_max)
 } 
 
+#offset <- round(maxCCF(0, readAudio()) / shimmerSamplingRate, 3)
+
 offset <- round(maxCCF(parseShimmerData(), readAudio()) / shimmerSamplingRate, 3)
+
 
 if(offset < 0){
   print(paste0("The microphone began recording ", abs(offset), " seconds before the Shimmer3" ))
