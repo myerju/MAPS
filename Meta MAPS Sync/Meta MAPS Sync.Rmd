@@ -19,7 +19,7 @@ After participant leaves, data must be gathered off of all devices and put onto 
 MAPS was started in several different ways when protocol was still being established.
 
 Sync Types:
-1) *1-2-3-4 Touch*: Examiner touched the screen as they said the numbers 1 through 4 aloud. This was supposed to give us a specific timepoint in the webcam audio to match to the touch in the sesison log. (Used in MAPS-001 - MAPS-011)
+1) *1-2-3-4 Touch*: Examiner touched the screen as they said the numbers 1 through 4 aloud. This was supposed to give us a specific timepoint in the webcam audio to match to the touch in the sesison log. (Used in MAPS-002 - MAPS-011)
 
 2) *Double Audio*: Webcamera and main laptop collected audio at the same time. The accelerometer sync button was pushed in the first 30 seconds of the session to give both audios a distinct audio to line up. Time points are found using Audacity (goal: use an R script to find beep start times)
 
