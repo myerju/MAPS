@@ -10,8 +10,6 @@ ipak <- function(pkg){
 }
 suppressMessages(ipak(pkgs)) # take function, and give it that list
 
-id <- "MAPS-003"
-
 ##Import Data
 eyetracker <- (read.csv(paste("", "Volumes", "MAPS1", "Participant Recordings", id, "raw", paste(id,"_eyetracker.csv", sep = ""), sep = "/"))) 
 log <-  (read_tsv(paste("", "Volumes", "MAPS1", "Participant Recordings", id, "raw", paste(id,"_log.tsv", sep = ""), sep = "/"))) 
@@ -96,5 +94,3 @@ write.csv(sync_data, file = paste("", "Volumes", "MAPS1", "Participant Recording
 
 #post-calibration synced dataset 
 write.csv(sync_data_postcalib, paste("", "Volumes", "MAPS1", "Participant Recordings", id, "synced", paste(id, "_postcalib_data_sync.csv", sep=""), sep="/"))
-
-
