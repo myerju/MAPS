@@ -32,7 +32,7 @@ Sync Types:
 Define computer and participant ID for following scripts
 ```{r define_id_computer}
 #enter child ID
-id <- "MAPS-003"
+id <- "MAPS-014"
 
 # enter location- servername
 username <- "myerju"
@@ -54,21 +54,42 @@ How to annotate eyetracker files (from Joel Adams):
       - dot at the end of the command means “secure copy all of the csvs from joel at the path /…/…/output_scripts and put them in current directory
  8. Run 'python align_annotation.py util.py' on local machine
 
+##Sync Webcam/eyetracker/webcam
+Merge log file and eyetracker csv
+```{r eyetracker_log_merge}
+source('/Users/myerju/Documents/Repositories/MAPS/Meta MAPS Sync/log_eyetracker_sync.R')
+```
+
+Merge log file and webcam timepoints
+```{r eyetracker_log_merge}
+source('/Users/myerju/Documents/Repositories/MAPS/Meta MAPS Sync/log_webcam_sync.R')
+```
+
+
+##Assess Data Usability
+
+Split webcam videos per stimuli
+
+Step 1: Get stimuli timestamps
+```{r stimuli_timestamps}
+source('/Users/myerju/Documents/Repositories/MAPS/Meta MAPS Sync/stimuli_split.R')
+```
+
+Step 2: Get pause times
+
+Step 3: Split webcam videos
+
+Step 4: 
+
 ##CERT: 
 
-Step 1: Merge log file and eyetracker csv
+Step 1: Pre-CERT Video Split Timestamps
 
-```{r eyetracker_log_merge}
-source('/Users/myerju/Box Sync/MAPS/Scripts/Meta MAPS/log_eyetracker_sync.R')
+```{r emotion_timestamps}
+source('/Users/myerju/Documents/Repositories/MAPS/Meta MAPS Sync/Pre-CERT_video_split.R')
 ```
 
-Step 2: Pre-CERT Video Split Timestamps
-
-```{r pre_cert_timestamps}
-source('/Users/myerju/Box Sync/MAPS/Scripts/Meta MAPS/Pre-CERT_video_split.R')
-```
-
-Step 3: Split Video using python
+Step 2: Split Video using python
 
 open up the terminal and run 
 
@@ -94,11 +115,11 @@ for id in ids:
 subprocess.check_call(["ffmpeg", "-ss", start_time, "-t", duration, "-i", movpath, "-vcodec", "copy", "-acodec", "copy", output])
 ``
 
-Step 4: Run Video through CERT
+Step 3: Run Video through CERT
 Now that you have your cut video in the CERT folder, you can open up CERT and run it through the system. When it is done processing (it may take a long time), save the txt file in your CERT analysis folder on the harddrive.
 
 ```{r pre_cert_timestamps}
-source('/Users/myerju/Box Sync/MAPS/Scripts/Meta MAPS/Post-CERT_cleanup.R')
+source('/Users/myerju/Documents/Repositories/MAPS/Meta MAPS Sync/Post-CERT_cleanup.R')
 ```
 
 Note: 2 warning messages will appear about "numerical expression has 2 elements: only the first used". This is a good thing. Don't worry about it :)
