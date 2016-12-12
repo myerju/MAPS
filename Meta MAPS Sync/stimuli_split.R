@@ -10,8 +10,6 @@ ipak <- function(pkg){
 }
 suppressMessages(ipak(pkgs)) # take function, and give it that list
 
-id <- "MAPS-014"
-
 ##Import Data
 sync_type1 <- c("MAPS-001", "MAPS-002", "MAPS-003", "MAPS-004", "MAPS-005", "MAPS-006", "MAPS-007", "MAPS-008", "MAPS-009", "MAPS-010", "MAPS-011")
 
@@ -50,9 +48,15 @@ for(i in 1:25) {
   
   stimuli_duration <- duration_end - duration_start
   
-  POSIXct_stimuli_duration <- parse_date_time(stimuli_duration,"ms") # doesn't work for videos under a minute
-  stimuli_duration <- format(POSIXct_stimuli_duration, format="%H:%M:%OS")
-  #emotion_duration <- paste0("00:", emotion_duration)
+  # parse_date_time doesn't work for videos under a minute, so paste is a workaround
+  #"Block 3/Hannah_edit.mov" is working incorrectly, it says that the stimuli_duration is 1 minute - 30 seconds, 
+  #but still insists that the duration is 00:01:30. Small workaround below, but eventually figure out error
+  
+  if(stimuli_duration@minute==0 | stimuli_name == "Hannah_edit"){
+    stimuli_duration <- paste("00:00:", abs(stimuli_duration@.Data), sep="")} else{  
+      POSIXct_stimuli_duration <- parse_date_time(stimuli_duration,"ms") 
+      stimuli_duration <- format(POSIXct_stimuli_duration, format="%H:%M:%OS")
+      }
   
   #Export 
   stimuli_times <- cbind(stimuli_start, stimuli_end, stimuli_duration)
